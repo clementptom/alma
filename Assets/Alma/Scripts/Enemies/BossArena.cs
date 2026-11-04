@@ -19,6 +19,8 @@ namespace Alma
         [Tooltip("Disabled after victory (e.g. a cutscene trigger).")]
         public GameObject[] deactivateOnDefeat = new GameObject[0];
         public float delayBeforeWake = 0.6f;
+        [Tooltip("Start when the player walks in. Turn off to start it from a StorySequence (StartBossFight).")]
+        public bool startOnEnter = true;
         public float rewardDelay = 1.5f;
         public string victoryToast = "";
 
@@ -62,11 +64,18 @@ namespace Alma
 
         void Update()
         {
-            if (Started || Finished || boss == null) return;
+            if (Started || Finished || boss == null || !startOnEnter) return;
             var player = PlayerController.Instance;
             var gm = GameManager.Instance;
             if (player == null || (gm != null && gm.State != GameState.Playing)) return;
             if (area.Contains(player.Center)) StartCoroutine(StartFight());
+        }
+
+        /// <summary>Starts the fight now (used by story sequences).</summary>
+        public void BeginFight()
+        {
+            if (Started || Finished || boss == null) return;
+            StartCoroutine(StartFight());
         }
 
         IEnumerator StartFight()

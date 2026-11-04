@@ -25,6 +25,9 @@ namespace Alma
         public static event Action<Boss> BossStarted;
         public static event Action<Boss> BossDefeated;
         public static event Action<GameState> StateChanged;
+        public static event Action<CharacterProfile> ProfileChanged;
+        /// <summary>Tutorial hint text shown at the bottom of the screen (empty hides it).</summary>
+        public static event Action<string> Hint;
 
         public static void RaisePlayerHealthChanged(int current, int max) => PlayerHealthChanged?.Invoke(current, max);
         public static void RaisePlayerEnergyChanged(int current, int max) => PlayerEnergyChanged?.Invoke(current, max);
@@ -39,6 +42,8 @@ namespace Alma
         public static void RaiseBossStarted(Boss boss) => BossStarted?.Invoke(boss);
         public static void RaiseBossDefeated(Boss boss) => BossDefeated?.Invoke(boss);
         public static void RaiseStateChanged(GameState state) => StateChanged?.Invoke(state);
+        public static void RaiseProfileChanged(CharacterProfile profile) => ProfileChanged?.Invoke(profile);
+        public static void RaiseHint(string text) => Hint?.Invoke(text);
 
         /// <summary>Clears all listeners so nothing leaks between play sessions when domain reload is off.</summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -57,6 +62,8 @@ namespace Alma
             BossStarted = null;
             BossDefeated = null;
             StateChanged = null;
+            ProfileChanged = null;
+            Hint = null;
         }
     }
 }

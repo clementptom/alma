@@ -27,6 +27,13 @@ namespace Alma
         public const string AttackUp = "AttackUp";
         public const string AttackDown = "AttackDown";
         public const string Heal = "Heal";
+        public const string Roll = "Roll";
+        public const string Parry = "Parry";
+        public const string Sneak = "Sneak";
+        public const string Crouch = "Crouch";
+        public const string Throw = "Throw";
+        public const string Swim = "Swim";
+        public const string Downed = "Downed";
 
         // Enemies and bosses
         public const string Move = "Move";
@@ -35,6 +42,18 @@ namespace Alma
         public const string Leap = "Leap";
         public const string Stunned = "Stunned";
         public const string Wake = "Wake";
+        public const string Search = "Search";
+        public const string Rise = "Rise";
+        public const string Lunge = "Lunge";
+
+        // Barro
+        public const string Sit = "Sit";
+        public const string Bark = "Bark";
+        public const string Growl = "Growl";
+        public const string Bite = "Bite";
+        public const string Sniff = "Sniff";
+        public const string Howl = "Howl";
+        public const string Drag = "Drag";
 
         // Objects
         public const string Open = "Open";
@@ -44,8 +63,16 @@ namespace Alma
         public static readonly string[] PlayerStates =
         {
             Idle, Run, Jump, DoubleJump, Fall, Land, WallSlide, Dash, Glide,
-            Attack, Attack2, AttackUp, AttackDown, Heal, Hurt, Death
+            Attack, Attack2, AttackUp, AttackDown, Heal, Roll, Parry, Sneak, Crouch, Throw, Swim, Downed, Hurt, Death
         };
+
+        public static readonly string[] GuardStates = { Idle, Move, Run, Search, Telegraph, Attack, Stunned, Hurt, Death };
+
+        public static readonly string[] DuelistStates = { Idle, Move, Telegraph, Attack, Attack2, Lunge, Stunned, Hurt, Death };
+
+        public static readonly string[] DrownedStates = { Idle, Rise, Telegraph, Attack, Hurt, Death };
+
+        public static readonly string[] CompanionStates = { Idle, Run, Jump, Fall, Sit, Bark, Growl, Bite, Sniff, Howl, Drag, Hurt, Downed };
 
         public static readonly string[] EnemyStates = { Idle, Move, Attack, Hurt, Death };
 
@@ -69,6 +96,23 @@ namespace Alma
             { AnimStates.Fall, AnimStates.Jump },
             { AnimStates.Land, AnimStates.Idle },
             { AnimStates.Heal, AnimStates.Idle },
+            { AnimStates.Roll, AnimStates.Dash },
+            { AnimStates.Parry, AnimStates.Attack },
+            { AnimStates.Sneak, AnimStates.Run },
+            { AnimStates.Crouch, AnimStates.Idle },
+            { AnimStates.Throw, AnimStates.Attack },
+            { AnimStates.Swim, AnimStates.Fall },
+            { AnimStates.Downed, AnimStates.Death },
+            { AnimStates.Search, AnimStates.Idle },
+            { AnimStates.Rise, AnimStates.Attack },
+            { AnimStates.Lunge, AnimStates.Attack },
+            { AnimStates.Sit, AnimStates.Idle },
+            { AnimStates.Bark, AnimStates.Idle },
+            { AnimStates.Growl, AnimStates.Bark },
+            { AnimStates.Bite, AnimStates.Attack },
+            { AnimStates.Sniff, AnimStates.Idle },
+            { AnimStates.Howl, AnimStates.Bark },
+            { AnimStates.Drag, AnimStates.Run },
             { AnimStates.Dash, AnimStates.Run },
             { AnimStates.Jump, AnimStates.Idle },
             { AnimStates.Run, AnimStates.Idle },

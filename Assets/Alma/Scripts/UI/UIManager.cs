@@ -28,6 +28,9 @@ namespace Alma
         public CinematicPlayer Cinematic { get; private set; }
         public CreditsUI Credits { get; private set; }
         public ScreenFader Fader { get; private set; }
+        public LockpickUI Lockpick { get; private set; }
+        public MashUI Mash { get; private set; }
+        public TitleCardUI TitleCard { get; private set; }
 
         EventSystem eventSystem;
         GameObject lastSelected;
@@ -57,7 +60,10 @@ namespace Alma
             Controls = Create<ControlsMenu>("Controls", root);
             Cinematic = Create<CinematicPlayer>("Cinematic", root);
             Credits = Create<CreditsUI>("Credits", root);
+            Lockpick = Create<LockpickUI>("Lockpick", root);
+            Mash = Create<MashUI>("Mash", root);
             Fader = Create<ScreenFader>("Fader", root);
+            TitleCard = Create<TitleCardUI>("TitleCard", root); // above the fader, so it shows on black
 
             SceneManager.sceneLoaded += OnSceneLoaded;
         }

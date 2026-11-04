@@ -19,6 +19,8 @@ namespace Alma
         public DamageType type;
         /// <summary>Hazard damage also teleports the player back to safe ground.</summary>
         public bool respawnAtSafeGround;
+        /// <summary>A blow the player can parry (most melee attacks). Red-flash attacks are not.</summary>
+        public bool parryable;
 
         public DamageInfo(int amount, Vector2 sourcePosition, GameObject source, DamageType type)
         {
@@ -27,6 +29,7 @@ namespace Alma
             this.source = source;
             this.type = type;
             respawnAtSafeGround = false;
+            parryable = false;
         }
     }
 
@@ -56,6 +59,12 @@ namespace Alma
         public event Action<DamageInfo> Damaged;
         public event Action Died;
 
+        /// <summary>
+        /// Called when a hit would be fatal. Return true to survive on 1 hit point instead
+        /// (Barro dragging Corvin out of a fight).
+        /// </summary>
+        public Func<DamageInfo, bool> deathGuard;
+
         float invulnerableTimer;
         bool initialized;
 
@@ -76,6 +85,15 @@ namespace Alma
         public bool TakeDamage(DamageInfo info)
         {
             if (!enabled || IsDead || IsInvulnerable || info.amount <= 0) return false;
+
+            if (Current - info.amount <= 0 && deathGuard != null && deathGuard(info))
+            {
+                Current = 1;
+                invulnerableTimer = invulnerabilityTime;
+                Changed?.Invoke(Current, maxHealth);
+                Damaged?.Invoke(info);
+                return true;
+            }
 
             Current = Mathf.Max(0, Current - info.amount);
             invulnerableTimer = invulnerabilityTime;

@@ -3,9 +3,11 @@ using UnityEngine;
 namespace Alma
 {
     /// <summary>
-    /// Player movement: run, jump (coyote time, jump buffer, variable height), drop through
-    /// one-way platforms, moving-platform riding, plus the unlockable abilities
-    /// (dash, wall slide / wall jump, double jump, glide), knockback and pogo bouncing.
+    /// Player movement: run, jump (coyote time, jump buffer, variable height), dodge roll
+    /// with invulnerability, sneaking, wading/swimming, slippery ice, drop through one-way
+    /// platforms, moving-platform riding, plus the unlockable abilities (air dash,
+    /// wall slide / wall jump, double jump, glide), knockback and pogo bouncing.
+    /// Running, landing and rolling make noise that enemies can hear.
     ///
     /// Input is read in Update and applied in FixedUpdate. Animation is handled by
     /// PlayerAnimator, which reads the public state below.
@@ -61,6 +63,19 @@ namespace Alma
         [Header("Glide")]
         public float glideFallSpeed = 2.2f;
 
+        [Header("Dodge Roll (ground)")]
+        public float rollSpeed = 11f;
+        public float rollDuration = 0.34f;
+        [Tooltip("Seconds at the start of the roll where nothing can hit you (hazards still do).")]
+        public float rollInvulnerability = 0.26f;
+        public float rollCooldown = 0.45f;
+
+        [Header("Noise (stealth)")]
+        public float runNoiseRadius = 5.5f;
+        public float landNoiseRadius = 6.5f;
+        public float rollNoiseRadius = 4f;
+        public float splashNoiseRadius = 6f;
+
         [Header("Getting Hit")]
         public Vector2 knockbackVelocity = new Vector2(8f, 9f);
         public float knockbackControlLock = 0.2f;
@@ -79,6 +94,11 @@ namespace Alma
         public bool IsDashing { get; private set; }
         public bool IsWallSliding { get; private set; }
         public bool IsGliding { get; private set; }
+        public bool IsRolling { get; private set; }
+        /// <summary>True during the invulnerable part of a dodge roll.</summary>
+        public bool RollInvulnerable => IsRolling && rollTimer > rollDuration - rollInvulnerability;
+        public bool IsInWater => water != null;
+        public bool IsSneaking => Stealth != null && Stealth.IsSneaking;
         public bool IsFrozen => freezeCount > 0;
         public Vector2 Velocity => rb.linearVelocity;
         public int InputX { get; private set; }
@@ -92,9 +112,12 @@ namespace Alma
         public PlayerHealth PlayerHealth { get; private set; }
         public PlayerCombat Combat { get; private set; }
         public PlayerEnergy Energy { get; private set; }
+        public PlayerStealth Stealth { get; private set; }
+        public PlayerProfile Profile { get; private set; }
         /// <summary>The collider we're standing on (null in the air).</summary>
         public Collider2D GroundCollider => groundCollider;
         bool IsHealing => Energy != null && Energy.IsHealing;
+        bool IsRooted => IsHealing || (Combat != null && Combat.IsParrying);
         public Vector2 LastSafePosition => lastSafePosition;
 
         Rigidbody2D rb;
@@ -107,7 +130,7 @@ namespace Alma
         float moveX;
         float coyoteTimer;
         float jumpBufferTimer;
-        float dashRequestTimer;
+        float dodgeRequestTimer;
         bool jumpHeld;
         bool isJumping;
         bool usedDoubleJump;
@@ -122,6 +145,14 @@ namespace Alma
         float dashTimer;
         float dashCooldownTimer;
         int dashDir;
+
+        float rollTimer;
+        float rollCooldownTimer;
+        int rollDir;
+
+        WaterVolume water;
+        float swimCooldown;
+        float lowestAirVelocity;
 
         float inputLockTimer;
         float forcedMoveTimer;
@@ -160,6 +191,10 @@ namespace Alma
             Combat = GetComponent<PlayerCombat>();
             Energy = GetComponent<PlayerEnergy>();
             if (Energy == null) Energy = gameObject.AddComponent<PlayerEnergy>();
+            Stealth = GetComponent<PlayerStealth>();
+            if (Stealth == null) Stealth = gameObject.AddComponent<PlayerStealth>();
+            Profile = GetComponent<PlayerProfile>();
+            if (Profile == null) Profile = gameObject.AddComponent<PlayerProfile>();
 
             if (frictionless == null) frictionless = new PhysicsMaterial2D("PlayerFrictionless") { friction = 0f, bounciness = 0f };
             rb.sharedMaterial = frictionless;
@@ -230,11 +265,11 @@ namespace Alma
             var input = InputReader.Instance;
             if (input == null) return;
 
-            if (CanControl && IsHealing)
+            if (CanControl && IsRooted)
             {
-                // Rooted in place while healing.
+                // Rooted in place while healing or parrying.
                 InputX = 0;
-                InputY = 0;
+                InputY = input.MoveY;
                 jumpHeld = false;
             }
             else if (CanControl)
@@ -243,7 +278,7 @@ namespace Alma
                 InputY = input.MoveY;
                 jumpHeld = input.JumpHeld;
                 if (input.JumpPressed) jumpBufferTimer = jumpBufferTime;
-                if (input.DashPressed) dashRequestTimer = 0.1f;
+                if (input.DodgePressed) dodgeRequestTimer = 0.12f;
             }
             else
             {
@@ -251,7 +286,7 @@ namespace Alma
                 InputY = 0;
                 jumpHeld = false;
                 jumpBufferTimer = 0f;
-                dashRequestTimer = 0f;
+                dodgeRequestTimer = 0f;
             }
 
             if (DoubleJumpTimer > 0f) DoubleJumpTimer -= Time.deltaTime;
@@ -265,14 +300,17 @@ namespace Alma
             jumpedThisStep = false;
 
             Tick(ref jumpBufferTimer, dt);
-            Tick(ref dashRequestTimer, dt);
+            Tick(ref dodgeRequestTimer, dt);
             Tick(ref dashCooldownTimer, dt);
+            Tick(ref rollCooldownTimer, dt);
+            Tick(ref swimCooldown, dt);
             Tick(ref inputLockTimer, dt);
             Tick(ref forcedMoveTimer, dt);
             UpdateDropThrough(dt);
 
             CheckGround();
             CheckWalls();
+            UpdateWater();
             UpdateGroundedState(dt);
 
             if (PlayerHealth.IsDead)
@@ -286,6 +324,7 @@ namespace Alma
             {
                 moveX = 0f;
                 IsDashing = false;
+                IsRolling = false;
                 IsWallSliding = false;
                 IsGliding = false;
                 rb.gravityScale = baseGravityScale;
@@ -299,7 +338,13 @@ namespace Alma
                 return;
             }
 
-            if (IsHealing)
+            if (IsRolling)
+            {
+                RollStep(dt);
+                return;
+            }
+
+            if (IsRooted)
             {
                 moveX = Mathf.MoveTowards(moveX, 0f, groundDeceleration * dt);
                 IsWallSliding = false;
@@ -312,13 +357,15 @@ namespace Alma
             int inputX = forcedMoveTimer > 0f ? forcedMoveDir : InputX;
             float vy = rb.linearVelocity.y;
 
-            // Horizontal movement
+            // Horizontal movement (sneaking, water, ice and the character all change it)
             if (inputLockTimer <= 0f)
             {
-                float target = inputX * runSpeed;
+                float target = inputX * runSpeed * SpeedMultiplier();
                 float accel = IsGrounded
                     ? (inputX != 0 ? groundAcceleration : groundDeceleration)
                     : (inputX != 0 ? airAcceleration : airDeceleration);
+                var surface = IsGrounded && groundCollider != null ? groundCollider.GetComponentInParent<SurfaceModifier>() : null;
+                if (surface != null) accel *= inputX != 0 ? surface.accelerationMultiplier : surface.decelerationMultiplier;
                 moveX = Mathf.MoveTowards(moveX, target, accel * dt);
                 if (inputX != 0 && !Combat.IsAttacking) Facing = inputX;
             }
@@ -351,7 +398,13 @@ namespace Alma
                 }
                 else if (IsGrounded || coyoteTimer > 0f)
                 {
-                    vy = Jump(jumpVelocity, true);
+                    vy = Jump(jumpVelocity * (water != null ? water.jumpMultiplier : 1f), true);
+                }
+                else if (water != null && swimCooldown <= 0f)
+                {
+                    // Swim stroke: keep "jumping" while in water.
+                    swimCooldown = 0.35f;
+                    vy = Jump(jumpVelocity * water.jumpMultiplier, false);
                 }
                 else if (wallCoyoteTimer > 0f && Has(AbilityType.WallJump))
                 {
@@ -367,11 +420,20 @@ namespace Alma
                 }
             }
 
-            // Dash
-            if (dashRequestTimer > 0f && dashCooldownTimer <= 0f && Has(AbilityType.Dash) && (IsGrounded || !usedAirDash))
+            // Dodge: roll on the ground; air dash once the Dash ability is unlocked.
+            if (dodgeRequestTimer > 0f)
             {
-                StartDash(inputX);
-                return;
+                bool canRoll = Profile.CanDodge && IsGrounded && water == null && rollCooldownTimer <= 0f && !Combat.IsAttacking;
+                if (canRoll)
+                {
+                    StartRoll(inputX);
+                    return;
+                }
+                if (!IsGrounded && Has(AbilityType.Dash) && dashCooldownTimer <= 0f && !usedAirDash)
+                {
+                    StartDash(inputX);
+                    return;
+                }
             }
 
             // Variable jump height
@@ -383,10 +445,11 @@ namespace Alma
             if (vy <= 0f) isJumping = false;
 
             // Gravity and fall speed
-            IsGliding = Has(AbilityType.Glide) && !IsGrounded && !IsWallSliding && jumpHeld && vy < 0f;
-            rb.gravityScale = baseGravityScale * (vy < 0f ? fallGravityMultiplier : 1f);
-            float maxFall = IsWallSliding ? wallSlideSpeed : IsGliding ? glideFallSpeed : maxFallSpeed;
+            IsGliding = Has(AbilityType.Glide) && !IsGrounded && !IsWallSliding && jumpHeld && vy < 0f && water == null;
+            rb.gravityScale = baseGravityScale * (vy < 0f ? fallGravityMultiplier : 1f) * (water != null ? water.gravityMultiplier : 1f);
+            float maxFall = water != null ? water.maxFallSpeed : IsWallSliding ? wallSlideSpeed : IsGliding ? glideFallSpeed : maxFallSpeed;
             if (vy < -maxFall) vy = -maxFall;
+            if (!IsGrounded) lowestAirVelocity = Mathf.Min(lowestAirVelocity, vy);
 
             // Moving platforms carry the player
             Vector2 carry = groundPlatform != null && IsGrounded ? groundPlatform.Velocity : Vector2.zero;
@@ -455,7 +518,10 @@ namespace Alma
                     TimeSinceLanded = 0f;
                     AudioManager.PlaySfx(AudioIds.PlayerLand);
                     EffectsManager.Spawn(EffectIds.DustLand, FeetPosition);
+                    // A hard landing is loud, unless you're sneaking.
+                    if (lowestAirVelocity < -10f && !IsSneaking) Noise.Emit(FeetPosition, landNoiseRadius, gameObject);
                 }
+                lowestAirVelocity = 0f;
 
                 // Remember solid, still ground so hazards can put us back here.
                 if (groundPlatform == null)
@@ -552,12 +618,66 @@ namespace Alma
             return wallJumpVelocity.y;
         }
 
+        // ---------------------------------------------------------- Water, speed
+
+        float SpeedMultiplier()
+        {
+            float m = Profile != null ? Profile.SpeedMultiplier : 1f;
+            if (IsSneaking) m *= Stealth.sneakSpeedMultiplier;
+            if (water != null) m *= water.speedMultiplier;
+            return m;
+        }
+
+        void UpdateWater()
+        {
+            var now = WaterVolume.At(new Vector2(Center.x, col.bounds.min.y + 0.3f));
+            if (now != null && water == null)
+            {
+                AudioManager.PlaySfx(AudioIds.Splash);
+                EffectsManager.Spawn(EffectIds.Splash, FeetPosition);
+                Noise.Emit(FeetPosition, splashNoiseRadius, gameObject);
+            }
+            water = now;
+        }
+
+        // ------------------------------------------------------------------ Roll
+
+        void StartRoll(int inputX)
+        {
+            IsRolling = true;
+            dodgeRequestTimer = 0f;
+            rollTimer = rollDuration;
+            rollCooldownTimer = rollCooldown + rollDuration;
+            rollDir = inputX != 0 ? inputX : Facing;
+            Facing = rollDir;
+            isJumping = false;
+            AudioManager.PlaySfx(AudioIds.PlayerRoll);
+            EffectsManager.Spawn(EffectIds.RollDust, FeetPosition, rollDir < 0);
+            if (!IsSneaking) Noise.Emit(FeetPosition, rollNoiseRadius, gameObject);
+        }
+
+        void RollStep(float dt)
+        {
+            rollTimer -= dt;
+            rb.gravityScale = baseGravityScale;
+            float vy = Mathf.Max(rb.linearVelocity.y, -maxFallSpeed);
+            rb.linearVelocity = new Vector2(rollDir * rollSpeed, vy);
+            if (rollTimer <= 0f || wallDir == rollDir) EndRoll();
+        }
+
+        void EndRoll()
+        {
+            if (!IsRolling) return;
+            IsRolling = false;
+            moveX = rollDir * runSpeed * 0.4f;
+        }
+
         // ------------------------------------------------------------------ Dash
 
         void StartDash(int inputX)
         {
             IsDashing = true;
-            dashRequestTimer = 0f;
+            dodgeRequestTimer = 0f;
             dashTimer = dashDuration;
             dashCooldownTimer = dashCooldown + dashDuration;
             // From a wall slide, always dash away from the wall.
@@ -596,6 +716,7 @@ namespace Alma
         public void ApplyKnockback(Vector2 sourcePosition)
         {
             EndDash();
+            EndRoll();
             float dir = Mathf.Sign(rb.position.x - sourcePosition.x);
             if (Mathf.Abs(rb.position.x - sourcePosition.x) < 0.01f) dir = -Facing;
             moveX = dir * knockbackVelocity.x;
@@ -651,6 +772,7 @@ namespace Alma
         public void Teleport(Vector2 position)
         {
             EndDash();
+            EndRoll();
             rb.position = position;
             transform.position = position;
             rb.linearVelocity = Vector2.zero;
@@ -687,8 +809,10 @@ namespace Alma
             footstepTimer -= dt;
             if (footstepTimer <= 0f)
             {
-                footstepTimer = 0.3f;
-                AudioManager.PlaySfx(AudioIds.PlayerFootstep);
+                footstepTimer = IsSneaking ? 0.5f : 0.3f;
+                AudioManager.PlaySfx(AudioIds.PlayerFootstep, IsSneaking ? 0.35f : 1f);
+                // Running is loud; sneaking is silent.
+                if (!IsSneaking) Noise.Emit(FeetPosition, runNoiseRadius * Mathf.Clamp01(Mathf.Abs(moveX) / runSpeed), gameObject);
             }
         }
 

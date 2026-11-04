@@ -35,6 +35,12 @@ namespace Alma
         [Tooltip("Energy bar color once there's enough for a heal.")]
         public Color energyReadyColor = new Color(0.65f, 0.95f, 1f);
         public Sprite currencyIcon;
+        [Header("Dread")]
+        public Sprite dreadFrame;
+        public Sprite dreadFill;
+        public Color dreadColor = new Color(0.55f, 0.25f, 0.75f);
+        [Tooltip("Full-screen vignette that darkens as Dread rises. A soft black radial gradient works well.")]
+        public Sprite dreadVignette;
         public Color currencyColor = new Color(0.98f, 0.82f, 0.3f);
         public Sprite bossBarFrame;
         public Sprite bossBarFill;
@@ -53,7 +59,7 @@ namespace Alma
         public Sprite titleBackground;
         [Tooltip("Logo image. If empty, the game title is drawn as text.")]
         public Sprite titleLogo;
-        public string gameTitle = "ALMA";
+        public string gameTitle = "THE LAST LOCK";
 
         static UISkin cached;
 

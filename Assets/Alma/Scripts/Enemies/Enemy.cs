@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Alma
@@ -26,6 +27,12 @@ namespace Alma
         public Color hitFlashColor = new Color(1f, 0.35f, 0.35f, 1f);
         public float hitFlashTime = 0.08f;
 
+        [Header("Parry")]
+        [Tooltip("Seconds this enemy is staggered after the player parries it.")]
+        public float parryStaggerTime = 1.2f;
+        public Color unparryableFlashColor = new Color(1f, 0.15f, 0.1f, 1f);
+        public Color windupFlashColor = new Color(1f, 1f, 0.75f, 1f);
+
         [Header("Death")]
         public Vector2Int currencyDrop = new Vector2Int(1, 3);
         public CurrencyPickup currencyPrefab;
@@ -44,6 +51,11 @@ namespace Alma
         protected Collider2D col;
         protected CharacterAnimator anim;
         protected float stunTimer;
+        protected bool staggered;
+        /// <summary>Animation forced by the current action (attacks); null uses AnimationState().</summary>
+        protected string actionAnimation;
+        protected bool strikeCancelled;
+        readonly List<Collider2D> strikeHits = new List<Collider2D>();
         protected Vector2 homePosition;
 
         SpriteRenderer[] renderers;
@@ -86,6 +98,9 @@ namespace Alma
             if (stunTimer > 0f)
             {
                 stunTimer -= Time.fixedDeltaTime;
+                if (staggered && rb != null && rb.bodyType == RigidbodyType2D.Dynamic)
+                    rb.linearVelocity = new Vector2(Mathf.MoveTowards(rb.linearVelocity.x, 0f, 30f * Time.fixedDeltaTime), rb.linearVelocity.y);
+                if (stunTimer <= 0f) staggered = false;
                 return;
             }
             Tick();
@@ -94,8 +109,108 @@ namespace Alma
         protected virtual void Update()
         {
             if (IsDead) anim.Play(AnimStates.Death);
-            else if (stunTimer > 0f) anim.Play(AnimStates.Hurt);
-            else anim.Play(AnimationState());
+            else if (stunTimer > 0f) anim.Play(staggered ? AnimStates.Stunned : AnimStates.Hurt);
+            else anim.Play(!string.IsNullOrEmpty(actionAnimation) ? actionAnimation : AnimationState());
+        }
+
+        /// <summary>
+        /// The player parried this enemy's blow: cancel the attack and stagger, opening a riposte.
+        /// </summary>
+        public virtual void OnParried()
+        {
+            if (IsDead) return;
+            strikeCancelled = true;
+            actionAnimation = null;
+            staggered = true;
+            stunTimer = Mathf.Max(stunTimer, parryStaggerTime);
+            if (rb != null && rb.bodyType == RigidbodyType2D.Dynamic)
+                rb.linearVelocity = new Vector2(-Facing * 3f, rb.linearVelocity.y);
+            anim.Play(AnimStates.Stunned, true);
+        }
+
+        // ------------------------------------------------------------- Strikes
+
+        /// <summary>
+        /// A telegraphed melee attack: wind-up (the enemy flashes; red means it can't be
+        /// parried), a short active window where the hitbox hurts, then recovery.
+        /// The hitbox is relative to the enemy's center, facing right. Use from a coroutine:
+        /// yield return Strike(...). Stops early if the enemy is parried, stunned or killed.
+        /// </summary>
+        protected IEnumerator Strike(Vector2 offset, Vector2 size, int damage, float windup, float active,
+            float recovery, bool parryable, float lungeSpeed = 0f,
+            string windupAnim = AnimStates.Telegraph, string strikeAnim = AnimStates.Attack)
+        {
+            strikeCancelled = false;
+            actionAnimation = windupAnim;
+            if (rb != null && rb.bodyType == RigidbodyType2D.Dynamic) rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+            Flash(parryable ? windupFlashColor : unparryableFlashColor, Mathf.Min(0.18f, windup));
+            AudioManager.PlaySfx(parryable ? AudioIds.EnemyWindup : AudioIds.EnemyUnblockable);
+
+            float t = 0f;
+            while (t < windup)
+            {
+                if (StrikeInterrupted()) yield break;
+                t += Time.fixedDeltaTime;
+                yield return new WaitForFixedUpdate();
+            }
+
+            actionAnimation = strikeAnim;
+            AudioManager.PlaySfx(AudioIds.EnemySwing);
+            bool hitPlayer = false;
+            bool hitCompanion = false;
+            t = 0f;
+            while (t < active)
+            {
+                if (StrikeInterrupted()) yield break;
+                if (lungeSpeed > 0f && rb != null) rb.linearVelocity = new Vector2(Facing * lungeSpeed, rb.linearVelocity.y);
+
+                Vector2 center = Center + new Vector2(offset.x * Facing, offset.y);
+                strikeHits.Clear();
+                strikeHits.AddRange(PhysicsUtil.OverlapBox(center, size, Layers.PlayerMask | Layers.CompanionMask, true));
+                foreach (var hit in strikeHits)
+                {
+                    if (hit == null) continue;
+                    var info = new DamageInfo(damage, Center, gameObject, DamageType.Attack) { parryable = parryable };
+                    ModifyStrike(ref info);
+                    var playerHealth = hit.GetComponentInParent<PlayerHealth>();
+                    if (playerHealth != null && !hitPlayer)
+                    {
+                        hitPlayer = true;
+                        playerHealth.ApplyDamage(info);
+                        if (strikeCancelled) yield break; // parried
+                        continue;
+                    }
+                    var barro = hit.GetComponentInParent<BarroCompanion>();
+                    if (barro != null && !hitCompanion)
+                    {
+                        hitCompanion = true;
+                        barro.TakeHit(info);
+                    }
+                }
+                t += Time.fixedDeltaTime;
+                yield return new WaitForFixedUpdate();
+            }
+            if (lungeSpeed > 0f && rb != null) rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+
+            actionAnimation = AnimStates.Idle;
+            t = 0f;
+            while (t < recovery)
+            {
+                if (StrikeInterrupted()) yield break;
+                t += Time.fixedDeltaTime;
+                yield return new WaitForFixedUpdate();
+            }
+            actionAnimation = null;
+        }
+
+        /// <summary>Lets an enemy change its blows (e.g. the Drowned pull you under).</summary>
+        protected virtual void ModifyStrike(ref DamageInfo info) { }
+
+        bool StrikeInterrupted()
+        {
+            if (!strikeCancelled && !IsDead && stunTimer <= 0f) return false;
+            actionAnimation = null;
+            return true;
         }
 
         protected virtual void LateUpdate()
@@ -161,18 +276,25 @@ namespace Alma
             }
         }
 
-        void Flash()
+        void Flash() => Flash(hitFlashColor, hitFlashTime);
+
+        protected void Flash(Color color, float duration)
         {
             if (renderers.Length == 0) return;
-            if (flashRoutine != null) StopCoroutine(flashRoutine);
-            flashRoutine = StartCoroutine(FlashRoutine());
+            if (flashRoutine != null)
+            {
+                StopCoroutine(flashRoutine);
+                for (int i = 0; i < renderers.Length; i++)
+                    if (renderers[i] != null) renderers[i].color = baseColors[i];
+            }
+            flashRoutine = StartCoroutine(FlashRoutine(color, duration));
         }
 
-        IEnumerator FlashRoutine()
+        IEnumerator FlashRoutine(Color color, float duration)
         {
             for (int i = 0; i < renderers.Length; i++)
-                if (renderers[i] != null) renderers[i].color = hitFlashColor;
-            yield return new WaitForSeconds(hitFlashTime);
+                if (renderers[i] != null) renderers[i].color = color;
+            yield return new WaitForSeconds(duration);
             for (int i = 0; i < renderers.Length; i++)
                 if (renderers[i] != null) renderers[i].color = baseColors[i];
             flashRoutine = null;

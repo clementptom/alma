@@ -7,6 +7,35 @@ namespace Alma
     {
         static Sprite square;
         static Sprite circle;
+        static Sprite vignette;
+
+        /// <summary>A soft radial vignette (transparent centre, opaque edges).</summary>
+        public static Sprite Vignette
+        {
+            get
+            {
+                if (vignette == null)
+                {
+                    const int size = 128;
+                    var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp, name = "PlaceholderVignette" };
+                    var pixels = new Color[size * size];
+                    for (int y = 0; y < size; y++)
+                    for (int x = 0; x < size; x++)
+                    {
+                        float dx = (x + 0.5f) / size * 2f - 1f;
+                        float dy = (y + 0.5f) / size * 2f - 1f;
+                        float d = Mathf.Sqrt(dx * dx + dy * dy) / 1.414f;
+                        float a = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.35f, 1f, d));
+                        pixels[y * size + x] = new Color(1f, 1f, 1f, a);
+                    }
+                    tex.SetPixels(pixels);
+                    tex.Apply();
+                    vignette = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
+                    vignette.name = "PlaceholderVignette";
+                }
+                return vignette;
+            }
+        }
 
         /// <summary>A 1x1 world-unit white square.</summary>
         public static Sprite Square
