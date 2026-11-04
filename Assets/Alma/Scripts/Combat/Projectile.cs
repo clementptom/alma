@@ -15,6 +15,8 @@ namespace Alma
         [Tooltip("True for enemy projectiles (hurts the player). False makes it hurt enemies.")]
         public bool hurtsPlayer = true;
         public bool destroyedByWalls = true;
+        [Tooltip("Can the player parry this projectile?")]
+        public bool parryable = false;
         [Tooltip("Rotate the sprite to face its direction of travel.")]
         public bool rotateToDirection = true;
         public string hitEffect = EffectIds.ProjectileHit;
@@ -66,6 +68,14 @@ namespace Alma
             foreach (var hit in hits)
             {
                 if (owner != null && hit.transform.IsChildOf(owner.transform)) continue;
+                var playerHealth = hit.GetComponentInParent<PlayerHealth>();
+                if (playerHealth != null)
+                {
+                    // Goes through PlayerHealth so rolls and parries work.
+                    playerHealth.ApplyDamage(new DamageInfo(damage, position, owner != null ? owner : gameObject, DamageType.Projectile) { parryable = parryable });
+                    Impact(position);
+                    return;
+                }
                 var target = hit.GetComponentInParent<IDamageable>();
                 if (target == null) continue;
                 target.TakeDamage(new DamageInfo(damage, position, gameObject, DamageType.Projectile));

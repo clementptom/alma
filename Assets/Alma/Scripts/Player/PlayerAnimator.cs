@@ -16,6 +16,7 @@ namespace Alma
         PlayerController controller;
         PlayerCombat combat;
         PlayerHealth health;
+        StoneThrower thrower;
         CharacterAnimator anim;
         float hurtTimer;
         int lastAttackSerial;
@@ -25,6 +26,7 @@ namespace Alma
             controller = GetComponent<PlayerController>();
             combat = GetComponent<PlayerCombat>();
             health = GetComponent<PlayerHealth>();
+            thrower = GetComponent<StoneThrower>();
             if (animator == null) animator = GetComponentInChildren<Animator>();
             anim = new CharacterAnimator(animator);
         }
@@ -54,6 +56,8 @@ namespace Alma
             if (health != null && health.IsDead) return AnimStates.Death;
             if (hurtTimer > 0f) return AnimStates.Hurt;
             if (controller.Energy != null && controller.Energy.IsHealing) return AnimStates.Heal;
+            if (combat.IsParrying) return AnimStates.Parry;
+            if (controller.IsRolling) return AnimStates.Roll;
             if (controller.IsDashing) return AnimStates.Dash;
             if (combat.IsAttacking)
             {
@@ -64,7 +68,9 @@ namespace Alma
                 }
                 return combat.AnimationState;
             }
+            if (thrower != null && thrower.IsThrowing) return AnimStates.Throw;
             if (controller.IsWallSliding) return AnimStates.WallSlide;
+            if (controller.IsInWater && !controller.IsGrounded) return AnimStates.Swim;
             if (!controller.IsGrounded)
             {
                 if (controller.IsGliding) return AnimStates.Glide;
@@ -72,7 +78,9 @@ namespace Alma
                     return controller.DoubleJumpTimer > 0f ? AnimStates.DoubleJump : AnimStates.Jump;
                 return AnimStates.Fall;
             }
-            if (Mathf.Abs(controller.Velocity.x) > 0.5f && controller.InputX != 0) return AnimStates.Run;
+            bool moving = Mathf.Abs(controller.Velocity.x) > 0.5f && controller.InputX != 0;
+            if (controller.IsSneaking) return moving ? AnimStates.Sneak : AnimStates.Crouch;
+            if (moving) return AnimStates.Run;
             if (controller.TimeSinceLanded < landAnimationTime) return AnimStates.Land;
             return AnimStates.Idle;
         }

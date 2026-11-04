@@ -26,5 +26,11 @@ namespace Alma
         public const string Heal = "fx_heal";
         public const string Travel = "fx_travel";
         public const string Bounce = "fx_bounce";
+        public const string RollDust = "fx_roll_dust";
+        public const string ParrySpark = "fx_parry_spark";
+        public const string Splash = "fx_splash";
+        public const string StoneImpact = "fx_stone_impact";
+        public const string DreadPhantom = "fx_dread_phantom";
+        public const string BarroPuff = "fx_barro_puff";
     }
 }

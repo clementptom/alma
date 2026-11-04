@@ -11,15 +11,19 @@ namespace Alma
     /// rebound from the Controls menu. Custom bindings are saved in PlayerPrefs.
     ///
     /// Default controls (keyboard / gamepad):
-    ///   Move       WASD (+ arrow keys)   / Left stick, D-pad
-    ///   Jump       Space                 / A (Cross)
-    ///   Attack     J                     / X (Square)
-    ///   Dash       K                     / RB (+ RT)
-    ///   Heal       L                     / B (Circle)
-    ///   Interact   E                     / Y (Triangle)
-    ///   Map        Tab                   / Select (View)
-    ///   Inventory  I                     / LB
-    ///   Pause      Esc                   / Start (Menu)       (not rebindable)
+    ///   Move          WASD (+ arrow keys)   / Left stick
+    ///   Jump          Space                 / A (Cross)
+    ///   Attack        J                     / X (Square)
+    ///   Dodge         K                     / B (Circle)      roll on the ground, air dash once unlocked
+    ///   Parry         L                     / LB
+    ///   Heal          H                     / RB
+    ///   Interact      E                     / Y (Triangle)
+    ///   Sneak (hold)  Left Shift            / LT
+    ///   Throw stone   F                     / RT
+    ///   Barro         1 Track, 2 Guard, 3 Fetch, 4 Attack / D-pad up, down, left, right
+    ///   Map           Tab                   / Select (View)
+    ///   Inventory     I                     / R3
+    ///   Pause         Esc                   / Start (Menu)       (not rebindable)
     /// </summary>
     [DefaultExecutionOrder(-1000)]
     public class InputReader : MonoBehaviour
@@ -35,7 +39,7 @@ namespace Alma
 
         const string OverridesKey = "alma.input.bindings";
         /// <summary>Bump this if you change the default bindings layout, so old saved rebinds are ignored.</summary>
-        const int BindingLayoutVersion = 1;
+        const int BindingLayoutVersion = 2;
 
         // Saved as JSON. Bindings created in code get new internal ids every launch, so
         // overrides are stored by action name + binding index instead.
@@ -55,7 +59,25 @@ namespace Alma
         }
 
         /// <summary>Actions shown in the Controls menu, in order.</summary>
-        public static readonly string[] RebindableActions = { "Jump", "Attack", "Dash", "Heal", "Interact", "Map", "Inventory" };
+        public static readonly string[] RebindableActions =
+        {
+            "Jump", "Attack", "Dodge", "Parry", "Heal", "Interact", "Sneak", "Throw",
+            "BarroTrack", "BarroGuard", "BarroFetch", "BarroAttack", "Map", "Inventory"
+        };
+
+        /// <summary>Readable name for an action, for menus.</summary>
+        public static string ActionLabel(string action)
+        {
+            switch (action)
+            {
+                case "Throw": return "Throw Stone";
+                case "BarroTrack": return "Barro: Track";
+                case "BarroGuard": return "Barro: Guard / Heel";
+                case "BarroFetch": return "Barro: Fetch";
+                case "BarroAttack": return "Barro: Attack";
+                default: return action;
+            }
+        }
         /// <summary>Keyboard movement keys shown in the Controls menu (parts of the Move composite).</summary>
         public static readonly string[] MoveParts = { "Up", "Down", "Left", "Right" };
 
@@ -64,7 +86,8 @@ namespace Alma
 
         public InputActionMap Actions { get; private set; }
 
-        InputAction move, jump, attack, dash, heal, interact, map, inventory, pause, cancel;
+        InputAction move, jump, attack, dodge, parry, heal, interact, sneak, throwStone, map, inventory, pause, cancel;
+        InputAction barroTrack, barroGuard, barroFetch, barroAttack;
 
         /// <summary>Raised when the player switches between keyboard and gamepad (prompts update).</summary>
         public event Action DeviceChanged;
@@ -100,10 +123,18 @@ namespace Alma
         public bool JumpPressed => GameplayEnabled && jump.WasPressedThisFrame();
         public bool JumpHeld => GameplayEnabled && jump.IsPressed();
         public bool AttackPressed => GameplayEnabled && attack.WasPressedThisFrame();
-        public bool DashPressed => GameplayEnabled && dash.WasPressedThisFrame();
+        public bool DodgePressed => GameplayEnabled && dodge.WasPressedThisFrame();
+        public bool ParryPressed => GameplayEnabled && parry.WasPressedThisFrame();
         public bool HealPressed => GameplayEnabled && heal.WasPressedThisFrame();
         public bool HealHeld => GameplayEnabled && heal.IsPressed();
         public bool InteractPressed => GameplayEnabled && interact.WasPressedThisFrame();
+        public bool InteractHeld => GameplayEnabled && interact.IsPressed();
+        public bool SneakHeld => GameplayEnabled && sneak.IsPressed();
+        public bool ThrowPressed => GameplayEnabled && throwStone.WasPressedThisFrame();
+        public bool BarroTrackPressed => GameplayEnabled && barroTrack.WasPressedThisFrame();
+        public bool BarroGuardPressed => GameplayEnabled && barroGuard.WasPressedThisFrame();
+        public bool BarroFetchPressed => GameplayEnabled && barroFetch.WasPressedThisFrame();
+        public bool BarroAttackPressed => GameplayEnabled && barroAttack.WasPressedThisFrame();
 
         // --- Always available (menus, dialogue, pause) ---
         public Vector2 RawMove => move.ReadValue<Vector2>();
@@ -162,16 +193,21 @@ namespace Alma
                 .With("Up", "<Keyboard>/upArrow", KeyboardExtraGroup).With("Down", "<Keyboard>/downArrow", KeyboardExtraGroup)
                 .With("Left", "<Keyboard>/leftArrow", KeyboardExtraGroup).With("Right", "<Keyboard>/rightArrow", KeyboardExtraGroup);
             move.AddBinding("<Gamepad>/leftStick", groups: GamepadExtraGroup);
-            move.AddBinding("<Gamepad>/dpad", groups: GamepadExtraGroup);
 
             jump = Button("Jump", "<Keyboard>/space", "<Gamepad>/buttonSouth");
             attack = Button("Attack", "<Keyboard>/j", "<Gamepad>/buttonWest");
-            dash = Button("Dash", "<Keyboard>/k", "<Gamepad>/rightShoulder");
-            dash.AddBinding("<Gamepad>/rightTrigger", groups: GamepadExtraGroup);
-            heal = Button("Heal", "<Keyboard>/l", "<Gamepad>/buttonEast");
+            dodge = Button("Dodge", "<Keyboard>/k", "<Gamepad>/buttonEast");
+            parry = Button("Parry", "<Keyboard>/l", "<Gamepad>/leftShoulder");
+            heal = Button("Heal", "<Keyboard>/h", "<Gamepad>/rightShoulder");
             interact = Button("Interact", "<Keyboard>/e", "<Gamepad>/buttonNorth");
+            sneak = Button("Sneak", "<Keyboard>/leftShift", "<Gamepad>/leftTrigger");
+            throwStone = Button("Throw", "<Keyboard>/f", "<Gamepad>/rightTrigger");
+            barroTrack = Button("BarroTrack", "<Keyboard>/1", "<Gamepad>/dpad/up");
+            barroGuard = Button("BarroGuard", "<Keyboard>/2", "<Gamepad>/dpad/down");
+            barroFetch = Button("BarroFetch", "<Keyboard>/3", "<Gamepad>/dpad/left");
+            barroAttack = Button("BarroAttack", "<Keyboard>/4", "<Gamepad>/dpad/right");
             map = Button("Map", "<Keyboard>/tab", "<Gamepad>/select");
-            inventory = Button("Inventory", "<Keyboard>/i", "<Gamepad>/leftShoulder");
+            inventory = Button("Inventory", "<Keyboard>/i", "<Gamepad>/rightStickPress");
             pause = Button("Pause", "<Keyboard>/escape", "<Gamepad>/start");
 
             cancel = Actions.AddAction("Cancel", InputActionType.Button);

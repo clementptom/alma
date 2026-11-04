@@ -57,6 +57,9 @@ namespace Alma
 
             root.AddComponent<PlayerHealth>();
             root.AddComponent<PlayerEnergy>();
+            root.AddComponent<PlayerStealth>();
+            root.AddComponent<PlayerProfile>();
+            root.AddComponent<StoneThrower>();
             var combat = root.AddComponent<PlayerCombat>();
             combat.showPlaceholderSlash = true;
             var controller = root.AddComponent<PlayerController>();

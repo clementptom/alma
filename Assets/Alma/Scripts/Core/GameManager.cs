@@ -286,10 +286,62 @@ namespace Alma
             if (Data == null) return;
             Data.respawnScene = SceneManager.GetActiveScene().name;
             Data.respawnPointId = station.SpawnId;
-            var room = RoomTracker.Instance != null ? RoomTracker.Instance.Current : null;
-            Data.locationName = room != null ? room.displayName : Data.respawnScene;
+            Data.locationName = CurrentLocationName();
             RecordMarker(station.SpawnId, MapMarkerRecord.SaveStation, Data.locationName, station.transform.position);
+            if (BarroCompanion.Instance != null) BarroCompanion.Instance.ResetForNewArea();
             Save();
+        }
+
+        /// <summary>Checkpoints save the respawn point without healing (used in the prologue and long rooms).</summary>
+        public void SaveAtCheckpoint(Checkpoint checkpoint)
+        {
+            if (Data == null || checkpoint == null) return;
+            Data.respawnScene = SceneManager.GetActiveScene().name;
+            Data.respawnPointId = checkpoint.SpawnId;
+            Data.locationName = CurrentLocationName();
+            Save();
+        }
+
+        string CurrentLocationName()
+        {
+            var room = RoomTracker.Instance != null ? RoomTracker.Instance.Current : null;
+            if (room != null) return room.displayName;
+            var chapter = ChapterSettings.Current;
+            if (chapter != null && !string.IsNullOrEmpty(chapter.chapterTitle)) return chapter.chapterTitle;
+            return SceneManager.GetActiveScene().name;
+        }
+
+        bool restarting;
+
+        /// <summary>
+        /// Caught by a guard (or a failed stealth section): fade out and restart from the last
+        /// checkpoint or save station, with progress kept.
+        /// </summary>
+        public void RestartFromCheckpoint(string message)
+        {
+            if (restarting || dying || Data == null) return;
+            StartCoroutine(RestartRoutine(message));
+        }
+
+        IEnumerator RestartRoutine(string message)
+        {
+            restarting = true;
+            var player = Player;
+            if (player != null) player.Freeze();
+            if (!string.IsNullOrEmpty(message)) GameEvents.RaiseToast(message);
+            yield return new WaitForSecondsRealtime(0.8f);
+            while (SceneLoader.Instance.IsLoading) yield return null;
+            string scene = string.IsNullOrEmpty(Data.respawnScene) ? SceneManager.GetActiveScene().name : Data.respawnScene;
+            SceneLoader.Instance.Load(scene, Data.respawnPointId, () =>
+            {
+                if (Player != null)
+                {
+                    Player.ClearFreeze();
+                    Player.PlayerHealth.Health.HealFull();
+                }
+                if (DreadMeter.Instance != null) DreadMeter.Instance.ResetValue();
+                restarting = false;
+            });
         }
 
         /// <summary>Adds or updates a map marker. Returns true if it's new.</summary>
@@ -435,6 +487,7 @@ namespace Alma
                     Player.PlayerHealth.Revive();
                     Player.ClearFreeze();
                 }
+                if (DreadMeter.Instance != null) DreadMeter.Instance.ResetValue();
                 dying = false;
             });
         }
@@ -502,6 +555,8 @@ namespace Alma
             if (RoomTracker.Instance != null) RoomTracker.Instance.Refresh(true);
             else if (CameraController.Main != null) CameraController.Main.Snap();
 
+            ApplyChapter(player, freshPlayer);
+
             if (UIManager.Instance != null)
             {
                 UIManager.Instance.SetHudVisible(true);
@@ -514,6 +569,47 @@ namespace Alma
                 SetState(GameState.Playing);
                 CompleteArrival();
             }
+        }
+
+        /// <summary>Applies the scene's ChapterSettings: who the player is, and whether Barro is here.</summary>
+        void ApplyChapter(PlayerController player, bool freshPlayer)
+        {
+            var chapter = ChapterSettings.Current;
+            var profile = chapter != null ? chapter.Character : CharacterProfile.Default;
+            player.Profile.Apply(profile);
+            if (profile.maxHealthOverride > 0) player.PlayerHealth.ApplySave(profile.maxHealthOverride, freshPlayer);
+            if (DreadMeter.Instance != null && freshPlayer) DreadMeter.Instance.ResetValue();
+            RefreshCompanion();
+        }
+
+        /// <summary>Spawns, places or removes Barro to match the save and the current chapter.</summary>
+        public void RefreshCompanion()
+        {
+            var player = Player;
+            if (player == null) return;
+            var chapter = ChapterSettings.Current;
+            bool allowed = Data != null && Data.HasFlag(CompanionFlags.Joined)
+                           && player.Profile != null && player.Profile.HasCompanion
+                           && (chapter == null || chapter.allowCompanion);
+            var barro = BarroCompanion.Instance;
+            if (!allowed)
+            {
+                if (barro != null) Destroy(barro.gameObject);
+                return;
+            }
+            if (barro == null)
+            {
+                var prefab = Resources.Load<GameObject>("Barro");
+                var go = prefab != null ? Instantiate(prefab) : CompanionFactory.CreatePlaceholderBarro();
+                go.name = "Barro";
+                barro = go.GetComponent<BarroCompanion>();
+            }
+            if (barro == null) return;
+            if (barro.transform.parent != null) barro.transform.SetParent(null, true);
+            DontDestroyOnLoad(barro.gameObject);
+            barro.PlaceNear(player);
+            barro.ResetForNewArea();
+            barro.SetCollarVisible(Data.HasFlag(CompanionFlags.Collar));
         }
 
         ISpawnLocation pendingArrival;
@@ -574,6 +670,7 @@ namespace Alma
         {
             var player = PlayerController.Instance;
             if (player != null) Destroy(player.gameObject);
+            if (BarroCompanion.Instance != null) Destroy(BarroCompanion.Instance.gameObject);
             playerHealthInitialized = false;
         }
 

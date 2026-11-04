@@ -12,16 +12,15 @@ namespace Alma.EditorTools
     /// <summary>
     /// Alma > Build Greybox Demo
     ///
-    /// Generates placeholder sprites, prefabs for every gameplay object, and three playable
-    /// scenes (MainMenu, Area1, Area2) that use every system: movement, all four abilities,
-    /// combat, enemies, a boss fight, save stations, NPC dialogue, a cutscene, lever + gate,
-    /// key + locked door, breakable secret wall, hazards, moving and one-way platforms,
-    /// room-to-room camera, scene doors and the map.
+    /// Generates placeholder sprites, prefabs for every gameplay object, and the playable scenes:
+    /// MainMenu, the Last Lock slice (Prologue_Merida and Act0_Pass, see GreyboxDemoBuilder.LastLock.cs),
+    /// and the systems sandbox (Area1, Area2: all four abilities, the Brute boss, shops, fast travel,
+    /// lever + gate, key + locked door, breakable secret wall, moving and one-way platforms, the map).
     ///
     /// Safe to run again: it overwrites the generated files in Assets/Alma/Prefabs,
     /// Assets/Alma/Scenes and Assets/Alma/Art/Placeholder only.
     /// </summary>
-    public static class GreyboxDemoBuilder
+    public static partial class GreyboxDemoBuilder
     {
         const string Root = AlmaProjectSetup.RootFolder;
         const string PrefabFolder = Root + "/Prefabs";
@@ -44,7 +43,7 @@ namespace Alma.EditorTools
         public static void Build()
         {
             if (!EditorUtility.DisplayDialog("Build Greybox Demo",
-                    "This creates placeholder sprites, prefabs and the MainMenu, Area1 and Area2 scenes in Assets/Alma, " +
+                    "This creates placeholder sprites, prefabs and the MainMenu, Prologue_Merida, Act0_Pass, Area1 and Area2 scenes in Assets/Alma, " +
                     "replacing earlier generated versions.\n\nContinue?", "Build", "Cancel"))
                 return;
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
@@ -64,6 +63,8 @@ namespace Alma.EditorTools
                 EditorUtility.DisplayProgressBar("Alma", "Scenes...", 0.6f);
                 AlmaProjectSetup.EnsureFolder(SceneFolder);
                 BuildMainMenu();
+                BuildPrologue();
+                BuildAct0();
                 BuildArea1();
                 BuildArea2();
                 ConfigureBuildSettings();
@@ -79,7 +80,8 @@ namespace Alma.EditorTools
             }
 
             EditorUtility.DisplayDialog("Greybox demo ready",
-                "Press Play in MainMenu to start, or open Area1 / Area2 and press Play to test a level directly.\n\n" +
+                "Press Play in MainMenu and choose Play > a slot to start The Last Lock (prologue, then Act 0).\n\n" +
+                "Open Prologue_Merida or Act0_Pass and press Play to test a chapter directly. Area1 / Area2 are the systems sandbox.\n\n" +
                 "Cheats in the editor: F1 all abilities, F2 heal, F3 +100 currency, F4 god mode.", "OK");
         }
 
@@ -169,6 +171,7 @@ namespace Alma.EditorTools
             SavePrefab(MakeDoor(), PrefabFolder + "/World/Door.prefab");
             SavePrefab(MakeCrumbling(3f), PrefabFolder + "/World/CrumblingPlatform.prefab");
             SavePrefab(MakeBouncePad(), PrefabFolder + "/World/BouncePad.prefab");
+            CreateLastLockPrefabs();
         }
 
         static GameObject SavePrefab(GameObject go, string path)
@@ -537,8 +540,8 @@ namespace Alma.EditorTools
         {
             var config = AlmaProjectSetup.LoadOrCreate<GameConfig>(AlmaProjectSetup.ResourcesFolder + "/GameConfig.asset");
             config.mainMenuScene = "MainMenu";
-            config.startScene = "Area1";
-            config.startSpawnId = "start";
+            config.startScene = PrologueScene;
+            config.startSpawnId = "prologue_start";
             config.playerPrefab = prefabs["Player"];
 
             // Placeholder credits text you can edit.
@@ -557,6 +560,7 @@ namespace Alma.EditorTools
             var items = AlmaProjectSetup.LoadOrCreate<ItemDatabase>(AlmaProjectSetup.ResourcesFolder + "/ItemDatabase.asset");
             AddItem(items, "key_arena", "Arena Key", "A heavy iron key. It opens the gate to the Brute's arena.");
             AddItem(items, "old_lantern", "Old Lantern", "Sold by a wandering merchant. It doesn't seem to do anything... yet.");
+            AddLastLockItems(items);
             EditorUtility.SetDirty(items);
         }
 
@@ -568,7 +572,7 @@ namespace Alma.EditorTools
 
         static void ConfigureBuildSettings()
         {
-            var ours = new[] { "MainMenu", "Area1", "Area2" }.Select(n => $"{SceneFolder}/{n}.unity").ToList();
+            var ours = new[] { "MainMenu", PrologueScene, Act0Scene, "Area1", "Area2" }.Select(n => $"{SceneFolder}/{n}.unity").ToList();
             var others = EditorBuildSettings.scenes.Where(s => !ours.Contains(s.path));
             EditorBuildSettings.scenes = ours.Select(p => new EditorBuildSettingsScene(p, true)).Concat(others).ToArray();
         }

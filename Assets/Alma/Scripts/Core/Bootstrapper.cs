@@ -32,6 +32,7 @@ namespace Alma
             // Order matters: later managers use earlier ones in Awake.
             Ensure<InputReader>(systems);
             Ensure<AudioManager>(systems);
+            Ensure<DreadMeter>(systems);
             Ensure<SceneLoader>(systems);
             Ensure<RoomTracker>(systems);
             Ensure<UIManager>(systems);

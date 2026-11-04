@@ -11,6 +11,12 @@ namespace Alma
 
         public float Alpha => group != null ? group.alpha : 0f;
 
+        /// <summary>Fade to black (default) or another colour, e.g. white for snow.</summary>
+        public void SetColor(Color color)
+        {
+            if (image != null) image.color = new Color(color.r, color.g, color.b, 1f);
+        }
+
         protected override void OnBuild()
         {
             image = UIBuilder.CreateImage(transform, "Black", Color.black);
@@ -37,6 +43,8 @@ namespace Alma
                 yield return null;
             }
             SetAlpha(target);
+            // Once clear, go back to black for the next transition.
+            if (target <= 0f) SetColor(Color.black);
         }
     }
 }

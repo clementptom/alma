@@ -14,6 +14,8 @@ namespace Alma
         public float radius = 1.6f;
         public Vector2 promptOffset = new Vector2(0f, 2.2f);
         public bool requireGrounded = true;
+        [Tooltip("Seconds INTERACT must be held (fixing a roof, digging). 0 = a single press.")]
+        public float holdDuration = 0f;
 
         static readonly List<Interactable> active = new List<Interactable>();
 

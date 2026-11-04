@@ -16,6 +16,7 @@ namespace Alma
         public float hitShake = 0.25f;
 
         public Health Health { get; private set; }
+        public float LastDamageTime { get; private set; } = -99f;
         public bool IsDead => Health != null && Health.IsDead;
 
         PlayerController controller;
@@ -31,6 +32,7 @@ namespace Alma
             Health.Damaged += OnDamaged;
             Health.Died += OnDied;
             Health.Changed += OnChanged;
+            Health.deathGuard = info => BarroCompanion.Instance != null && BarroCompanion.Instance.TryRescue(info);
             renderers = GetComponentsInChildren<SpriteRenderer>(true);
         }
 
@@ -47,30 +49,42 @@ namespace Alma
             GameEvents.RaisePlayerHealthChanged(Health.Current, Health.Max);
         }
 
-        /// <summary>Entry point for contact and hazard damage.</summary>
-        public void ApplyDamage(DamageInfo info)
+        /// <summary>
+        /// Entry point for all damage to the player (contact, hazards, enemy strikes, projectiles).
+        /// Handles dodge-roll invulnerability and parries. Returns true if the hit landed.
+        /// </summary>
+        public bool ApplyDamage(DamageInfo info)
         {
-            if (Health.IsDead) return;
+            if (Health.IsDead) return false;
             var gm = GameManager.Instance;
-            if (gm != null && gm.State != GameState.Playing && gm.State != GameState.Dialogue) return;
+            if (gm != null && gm.State != GameState.Playing && gm.State != GameState.Dialogue
+                && gm.State != GameState.Lockpicking) return false;
 
             if (info.respawnAtSafeGround)
             {
                 // Hazards always send you back to safe ground, even during invulnerability.
-                Health.TakeDamage(info);
+                bool hurt = Health.TakeDamage(info);
                 if (!Health.IsDead && gm != null) gm.HazardRespawn();
-                return;
+                return hurt;
             }
-            Health.TakeDamage(info);
+
+            if (controller != null)
+            {
+                if (controller.RollInvulnerable) return false;
+                if (controller.Combat != null && controller.Combat.TryParry(info)) return false;
+            }
+            return Health.TakeDamage(info);
         }
 
         void OnDamaged(DamageInfo info)
         {
+            LastDamageTime = Time.time;
             if (!info.respawnAtSafeGround && controller != null) controller.ApplyKnockback(info.sourcePosition);
             AudioManager.PlaySfx(AudioIds.PlayerHurt);
             EffectsManager.Spawn(EffectIds.PlayerHurt, controller != null ? controller.Center : (Vector2)transform.position);
             CameraController.Shake(hitShake, 0.2f);
             if (GameManager.Instance != null) GameManager.Instance.HitStop(hitStopDuration);
+            DreadMeter.Spike(6f);
         }
 
         void OnDied()

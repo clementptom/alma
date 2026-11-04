@@ -59,7 +59,7 @@ namespace Alma
             }
             else
             {
-                var title = UIBuilder.CreateText(root, "Title", skin.gameTitle, 160, TextAnchor.MiddleCenter, skin.accentColor);
+                var title = UIBuilder.CreateText(root, "Title", skin.gameTitle, 120, TextAnchor.MiddleCenter, skin.accentColor);
                 UIBuilder.Place(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -140f), new Vector2(1400f, 240f));
             }
 

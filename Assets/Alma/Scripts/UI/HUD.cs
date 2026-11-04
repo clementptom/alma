@@ -26,6 +26,18 @@ namespace Alma
         Boss boss;
 
         Text toastText;
+
+        // The Last Lock: dread, stealth, Barro, enemy awareness, hints
+        Image vignette;
+        RectTransform dreadRoot;
+        RectTransform dreadFill;
+        Text statusText;
+        Text barroText;
+        RectTransform hintRoot;
+        Text hintText;
+        float hintTimer;
+        RectTransform promptFill;
+        readonly List<Text> alertLabels = new List<Text>();
         readonly Queue<string> toasts = new Queue<string>();
         float toastTimer;
 
@@ -55,9 +67,9 @@ namespace Alma
 
             var currencyIcon = UIBuilder.CreateImage(transform, "CurrencyIcon", skin.currencyColor, skin.currencyIcon);
             if (skin.currencyIcon != null) currencyIcon.color = Color.white;
-            UIBuilder.Place(currencyIcon.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(64f, -160f), new Vector2(36f, 36f));
+            UIBuilder.Place(currencyIcon.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(64f, -186f), new Vector2(36f, 36f));
             currencyText = UIBuilder.CreateText(transform, "Currency", "0", 36, TextAnchor.MiddleLeft);
-            UIBuilder.Place(currencyText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(112f, -154f), new Vector2(300f, 48f));
+            UIBuilder.Place(currencyText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(112f, -180f), new Vector2(300f, 48f));
 
             // Interaction prompt (follows the world position of the interactable).
             promptRoot = UIBuilder.CreatePanel(transform, "Prompt").rectTransform;
@@ -97,8 +109,150 @@ namespace Alma
             GameEvents.Toast += OnToast;
             GameEvents.BossStarted += OnBossStarted;
             GameEvents.BossDefeated += OnBossDefeated;
+            GameEvents.Hint += OnHint;
 
+            BuildLastLockHud(skin);
             SetVisible(false);
+        }
+
+        void BuildLastLockHud(UISkin skin)
+        {
+            // Dread vignette: behind everything else on the HUD.
+            vignette = UIBuilder.CreateImage(transform, "DreadVignette", new Color(0.02f, 0f, 0.04f, 0f), skin.dreadVignette != null ? skin.dreadVignette : Placeholders.Vignette);
+            UIBuilder.Stretch(vignette.rectTransform);
+            vignette.transform.SetAsFirstSibling();
+
+            var frame = UIBuilder.CreateImage(transform, "Dread", new Color(0f, 0f, 0f, 0.55f), skin.dreadFrame);
+            dreadRoot = frame.rectTransform;
+            UIBuilder.Place(dreadRoot, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(60f, -146f), new Vector2(240f, 14f));
+            var fill = UIBuilder.CreateImage(dreadRoot, "Fill", skin.dreadColor, skin.dreadFill);
+            dreadFill = fill.rectTransform;
+            dreadFill.anchorMin = Vector2.zero;
+            dreadFill.anchorMax = new Vector2(0f, 1f);
+            dreadFill.offsetMin = new Vector2(2f, 2f);
+            dreadFill.offsetMax = new Vector2(-2f, -2f);
+            var dreadLabel = UIBuilder.CreateText(dreadRoot, "Label", "Dread", 18, TextAnchor.MiddleLeft, new Color(1f, 1f, 1f, 0.6f));
+            UIBuilder.Place(dreadLabel.rectTransform, new Vector2(1f, 0.5f), new Vector2(0f, 0.5f), new Vector2(10f, 0f), new Vector2(120f, 24f));
+            dreadRoot.gameObject.SetActive(false);
+
+            statusText = UIBuilder.CreateText(transform, "StealthStatus", "", 24, TextAnchor.MiddleLeft, new Color(0.8f, 0.85f, 1f, 0.9f));
+            UIBuilder.Place(statusText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(60f, -230f), new Vector2(500f, 34f));
+            barroText = UIBuilder.CreateText(transform, "BarroStatus", "", 24, TextAnchor.MiddleLeft, new Color(0.95f, 0.8f, 0.6f, 0.9f));
+            UIBuilder.Place(barroText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(60f, -262f), new Vector2(500f, 34f));
+
+            hintRoot = UIBuilder.CreatePanel(transform, "Hint").rectTransform;
+            UIBuilder.Place(hintRoot, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 150f), new Vector2(1100f, 70f));
+            hintText = UIBuilder.CreateText(hintRoot, "Text", "", 28);
+            UIBuilder.Stretch(hintText.rectTransform, 12f);
+            hintRoot.gameObject.SetActive(false);
+
+            var progress = UIBuilder.CreateImage(promptRoot, "Progress", skin.accentColor);
+            promptFill = progress.rectTransform;
+            promptFill.anchorMin = Vector2.zero;
+            promptFill.anchorMax = new Vector2(0f, 0f);
+            promptFill.offsetMin = Vector2.zero;
+            promptFill.offsetMax = new Vector2(0f, 5f);
+        }
+
+        void OnHint(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                hintTimer = 0f;
+                hintRoot.gameObject.SetActive(false);
+                return;
+            }
+            hintText.text = text;
+            hintTimer = 7f;
+            hintRoot.gameObject.SetActive(true);
+        }
+
+        /// <summary>Fill of the prompt bar for hold-to-interact objects (0..1).</summary>
+        public void SetPromptProgress(float progress)
+        {
+            if (promptFill == null) return;
+            promptFill.anchorMax = new Vector2(Mathf.Clamp01(progress), 0f);
+        }
+
+        void UpdateLastLockHud()
+        {
+            var dread = DreadMeter.Instance;
+            float value = dread != null ? dread.Value : 0f;
+            var vc = vignette.color;
+            vc.a = Mathf.MoveTowards(vc.a, Mathf.Clamp01(value / 100f) * 0.85f, Time.unscaledDeltaTime);
+            vignette.color = vc;
+            dreadRoot.gameObject.SetActive(value > 1f);
+            dreadFill.anchorMax = new Vector2(Mathf.Clamp01(value / 100f), 1f);
+
+            var player = PlayerController.Instance;
+            string status = "";
+            if (player != null && player.Stealth != null)
+            {
+                if (player.Stealth.IsDisguised) status = "Disguised";
+                else if (player.Stealth.IsHidden) status = "Hidden";
+                else if (player.Stealth.IsSneaking) status = "Sneaking";
+            }
+            statusText.text = status;
+
+            var barro = BarroCompanion.Instance;
+            barroText.text = barro == null ? "" : "Barro: " + BarroStatus(barro);
+
+            if (hintTimer > 0f)
+            {
+                hintTimer -= Time.unscaledDeltaTime;
+                if (hintTimer <= 0f) hintRoot.gameObject.SetActive(false);
+            }
+
+            UpdateAlerts();
+        }
+
+        static string BarroStatus(BarroCompanion barro)
+        {
+            switch (barro.Current)
+            {
+                case BarroCompanion.Mode.Guard: return "staying";
+                case BarroCompanion.Mode.Tracking: return "tracking";
+                case BarroCompanion.Mode.Fetching: return "fetching";
+                case BarroCompanion.Mode.Attacking: return "attacking";
+                case BarroCompanion.Mode.Downed: return "down!";
+                case BarroCompanion.Mode.Scripted: return "";
+                default: return "with you";
+            }
+        }
+
+        void UpdateAlerts()
+        {
+            var cam = Camera.main;
+            int used = 0;
+            if (cam != null)
+            {
+                var parent = (RectTransform)transform;
+                foreach (var p in StealthPerception.Active)
+                {
+                    if (p == null || (p.State == Awareness.Unaware && p.Detection < 0.05f)) continue;
+                    var enemy = p.GetComponent<Enemy>();
+                    if (enemy != null && enemy.IsDead) continue;
+                    Vector3 screen = cam.WorldToScreenPoint((Vector2)p.transform.position + Vector2.up * 2.6f);
+                    if (screen.z < 0f) continue;
+                    if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(parent, screen, null, out Vector2 local)) continue;
+
+                    if (used >= alertLabels.Count)
+                    {
+                        var t = UIBuilder.CreateText(transform, "Alert", "", 44, TextAnchor.MiddleCenter);
+                        t.rectTransform.sizeDelta = new Vector2(60f, 60f);
+                        alertLabels.Add(t);
+                    }
+                    var label = alertLabels[used++];
+                    label.gameObject.SetActive(true);
+                    label.rectTransform.anchorMin = label.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+                    label.rectTransform.anchoredPosition = local;
+                    bool alert = p.State == Awareness.Alert;
+                    label.text = alert ? "!" : "?";
+                    float k = alert ? 1f : Mathf.Clamp01(p.Detection + (p.State != Awareness.Unaware ? 0.4f : 0f));
+                    label.color = alert ? new Color(1f, 0.25f, 0.2f, 1f) : new Color(1f, 0.9f, 0.3f, k);
+                }
+            }
+            for (int i = used; i < alertLabels.Count; i++) alertLabels[i].gameObject.SetActive(false);
         }
 
         void OnDestroy()
@@ -114,6 +268,7 @@ namespace Alma
             GameEvents.Toast -= OnToast;
             GameEvents.BossStarted -= OnBossStarted;
             GameEvents.BossDefeated -= OnBossDefeated;
+            GameEvents.Hint -= OnHint;
         }
 
         public void RefreshAll()
@@ -177,7 +332,8 @@ namespace Alma
             }
             var input = InputReader.Instance;
             string key = input != null ? input.PromptFor("Interact") : "E";
-            promptText.text = $"[{key}]  {target.prompt}";
+            promptText.text = target.holdDuration > 0f ? $"[Hold {key}]  {target.prompt}" : $"[{key}]  {target.prompt}";
+            SetPromptProgress(0f);
             promptRoot.gameObject.SetActive(true);
             PositionPrompt();
         }
@@ -221,6 +377,7 @@ namespace Alma
         void LateUpdate()
         {
             if (promptTarget != null) PositionPrompt();
+            UpdateLastLockHud();
 
             if (boss != null)
             {

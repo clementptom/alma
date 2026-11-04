@@ -39,7 +39,7 @@ namespace Alma
             if (def != null && !string.IsNullOrEmpty(def.description)) return def.description;
             switch (ability)
             {
-                case AbilityType.Dash: return "Press DASH to dash forward. Works once in the air.";
+                case AbilityType.Dash: return "Press DODGE in mid-air to dash forward.";
                 case AbilityType.WallJump: return "Hold toward a wall to slide down it, then press JUMP to leap off.";
                 case AbilityType.DoubleJump: return "Press JUMP again in mid-air.";
                 case AbilityType.Glide: return "Hold JUMP while falling to glide.";

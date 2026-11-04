@@ -11,6 +11,7 @@ namespace Alma
         public Interactable Current { get; private set; }
 
         PlayerController controller;
+        float holdTimer;
 
         void Awake()
         {
@@ -31,9 +32,24 @@ namespace Alma
             }
 
             var input = InputReader.Instance;
-            if (Current != null && input != null && input.InteractPressed)
+            if (Current == null || input == null)
             {
-                Current.Interact(controller);
+                holdTimer = 0f;
+                return;
+            }
+            if (Current.holdDuration <= 0f)
+            {
+                if (input.InteractPressed) Current.Interact(controller);
+                return;
+            }
+            // Hold to interact: fill the prompt bar.
+            holdTimer = input.InteractHeld ? holdTimer + Time.deltaTime : 0f;
+            if (UIManager.Instance != null) UIManager.Instance.Hud.SetPromptProgress(holdTimer / Current.holdDuration);
+            if (holdTimer >= Current.holdDuration)
+            {
+                holdTimer = 0f;
+                var target = Current;
+                target.Interact(controller);
             }
         }
 

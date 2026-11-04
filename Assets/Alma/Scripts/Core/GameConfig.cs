@@ -14,6 +14,8 @@ namespace Alma
         Popup,
         /// <summary>A full-screen menu (inventory, shop, fast travel, controls) is open.</summary>
         Overlay,
+        /// <summary>Picking a lock: the world keeps running, the player can't move.</summary>
+        Lockpicking,
         Transition,
         Dead
     }

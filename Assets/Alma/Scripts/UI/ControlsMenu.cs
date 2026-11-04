@@ -23,7 +23,8 @@ namespace Alma
             public Text gamepadLabel;
         }
 
-        const float RowHeight = 60f;
+        const float RowHeight = 42f;
+        const float FirstRowY = -152f;
 
         readonly List<Row> rows = new List<Row>();
         Text hint;
@@ -39,10 +40,10 @@ namespace Alma
             dim.raycastTarget = true;
 
             var box = UIBuilder.CreatePanel(transform, "Box").rectTransform;
-            UIBuilder.Place(box, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1240f, 1000f));
+            UIBuilder.Place(box, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1240f, 1040f));
 
-            var title = UIBuilder.CreateText(box, "Title", "Controls", 56, TextAnchor.MiddleCenter, skin.accentColor);
-            UIBuilder.Place(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -20f), new Vector2(800f, 70f));
+            var title = UIBuilder.CreateText(box, "Title", "Controls", 50, TextAnchor.MiddleCenter, skin.accentColor);
+            UIBuilder.Place(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -10f), new Vector2(800f, 60f));
 
             Header(box, "Action", 80f, TextAnchor.MiddleLeft);
             Header(box, "Keyboard", 640f, TextAnchor.MiddleCenter);
@@ -50,12 +51,12 @@ namespace Alma
 
             int index = 0;
             foreach (var part in InputReader.MoveParts) AddRow(box, index++, "Move", part, "Move " + part);
-            foreach (var action in InputReader.RebindableActions) AddRow(box, index++, action, null, action);
+            foreach (var action in InputReader.RebindableActions) AddRow(box, index++, action, null, InputReader.ActionLabel(action));
 
-            hint = UIBuilder.CreateText(box, "Hint", "", 26, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.65f));
-            UIBuilder.Place(hint.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 120f), new Vector2(1100f, 40f));
+            hint = UIBuilder.CreateText(box, "Hint", "", 24, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.65f));
+            UIBuilder.Place(hint.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -70f), new Vector2(1100f, 32f));
 
-            var size = new Vector2(360f, 70f);
+            var size = new Vector2(360f, 64f);
             resetButton = UIBuilder.CreateButton(box, "Reset", "Reset to Defaults", OnReset, size);
             UIBuilder.Place((RectTransform)resetButton.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-200f, 34f), size);
             backButton = UIBuilder.CreateButton(box, "Back", "Back", RequestClose, size);
@@ -69,34 +70,34 @@ namespace Alma
         {
             var t = UIBuilder.CreateText(box, "Header " + text, text, 30, anchor, UIBuilder.Skin.accentColor);
             UIBuilder.Place(t.rectTransform, new Vector2(0f, 1f), new Vector2(anchor == TextAnchor.MiddleLeft ? 0f : 0.5f, 0.5f),
-                new Vector2(x, -120f), new Vector2(anchor == TextAnchor.MiddleLeft ? 400f : 280f, 44f));
+                new Vector2(x, -112f), new Vector2(anchor == TextAnchor.MiddleLeft ? 400f : 280f, 36f));
         }
 
         void AddRow(RectTransform box, int index, string action, string part, string label)
         {
-            float y = -175f - index * RowHeight;
-            var name = UIBuilder.CreateText(box, "Label " + label, label, 30, TextAnchor.MiddleLeft);
+            float y = FirstRowY - index * RowHeight;
+            var name = UIBuilder.CreateText(box, "Label " + label, label, 24, TextAnchor.MiddleLeft);
             UIBuilder.Place(name.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(80f, y), new Vector2(420f, RowHeight));
 
             var row = new Row { action = action, part = part };
-            var cell = new Vector2(280f, RowHeight - 10f);
+            var cell = new Vector2(280f, RowHeight - 6f);
 
             row.keyboard = UIBuilder.CreateButton(box, "Keyboard " + label, "", () => Rebind(row, InputReader.KeyboardGroup), cell);
             UIBuilder.Place((RectTransform)row.keyboard.transform, new Vector2(0f, 1f), new Vector2(0.5f, 0.5f), new Vector2(640f, y), cell);
             row.keyboardLabel = row.keyboard.GetComponentInChildren<Text>();
-            row.keyboardLabel.fontSize = 28;
+            row.keyboardLabel.fontSize = 24;
 
             if (part == null)
             {
                 row.gamepad = UIBuilder.CreateButton(box, "Gamepad " + label, "", () => Rebind(row, InputReader.GamepadGroup), cell);
                 UIBuilder.Place((RectTransform)row.gamepad.transform, new Vector2(0f, 1f), new Vector2(0.5f, 0.5f), new Vector2(960f, y), cell);
                 row.gamepadLabel = row.gamepad.GetComponentInChildren<Text>();
-                row.gamepadLabel.fontSize = 28;
+                row.gamepadLabel.fontSize = 24;
             }
             else
             {
                 // Movement on a gamepad is always the stick and D-pad.
-                var fixedText = UIBuilder.CreateText(box, "Gamepad " + label, index == 0 ? "Left Stick / D-Pad" : "", 26, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.5f));
+                var fixedText = UIBuilder.CreateText(box, "Gamepad " + label, index == 0 ? "Left Stick" : "", 22, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.5f));
                 UIBuilder.Place(fixedText.rectTransform, new Vector2(0f, 1f), new Vector2(0.5f, 0.5f), new Vector2(960f, y), cell);
             }
             rows.Add(row);

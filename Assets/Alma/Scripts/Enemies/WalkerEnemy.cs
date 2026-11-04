@@ -20,13 +20,15 @@ namespace Alma
         public float sightRange = 6f;
         [Tooltip("Stops chasing once the player is this far away.")]
         public float loseSightRange = 9f;
+        [Tooltip("Played when it spots the player.")]
+        public string alertSound = AudioIds.EnemyAlert;
 
         bool chasing;
 
         protected override void Tick()
         {
             bool sees = chasesPlayer && CanSeePlayer(chasing ? loseSightRange : sightRange);
-            if (sees && !chasing) AudioManager.PlaySfx(AudioIds.EnemyAlert);
+            if (sees && !chasing) AudioManager.PlaySfx(alertSound);
             chasing = sees;
 
             float speed;

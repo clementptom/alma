@@ -98,7 +98,8 @@ namespace Alma.EditorTools
             EnsureFolder(ResourcesFolder);
 
             LoadOrCreate<GameConfig>(ResourcesFolder + "/GameConfig.asset");
-            LoadOrCreate<UISkin>(ResourcesFolder + "/UISkin.asset");
+            var skin = LoadOrCreate<UISkin>(ResourcesFolder + "/UISkin.asset");
+            if (skin.gameTitle == "ALMA") { skin.gameTitle = "THE LAST LOCK"; EditorUtility.SetDirty(skin); }
 
             var audio = LoadOrCreate<AudioLibrary>(ResourcesFolder + "/AudioLibrary.asset");
             foreach (var id in ConstantsOf(typeof(AudioIds)))
@@ -165,10 +166,27 @@ namespace Alma.EditorTools
                 ["Shopkeeper"] = EnsureController("Shopkeeper", new[] { AnimStates.Idle }),
                 ["FastTravel"] = EnsureController("FastTravelPoint", new[] { AnimStates.Idle, AnimStates.Active }),
                 ["BouncePad"] = EnsureController("BouncePad", new[] { AnimStates.Idle, AnimStates.Active }),
+                // The Last Lock
+                ["YoungSisnando"] = EnsureController("Player_YoungSisnando", AnimStates.PlayerStates),
+                ["Barro"] = EnsureController("Barro", AnimStates.CompanionStates),
+                ["Guard"] = EnsureController("Enemy_Guard", AnimStates.GuardStates),
+                ["Drowned"] = EnsureController("Enemy_Drowned", AnimStates.DrownedStates),
+                ["Wolf"] = EnsureController("Enemy_PaleWolf", AnimStates.EnemyStates),
+                ["Malaspina"] = EnsureController("Boss_Malaspina", AnimStates.DuelistStates),
+                // Story characters: Idle, plus Move while a story step walks them
+                ["Sisnando"] = EnsureController("NPC_Sisnando", ActorStates),
+                ["Ervigio"] = EnsureController("Actor_Ervigio", ActorStates),
+                ["Gundemar"] = EnsureController("Actor_Gundemar", ActorStates),
+                ["Soldier"] = EnsureController("Actor_Soldier", ActorStates),
+                ["Sailor"] = EnsureController("Actor_Sailor", ActorStates),
+                ["Pilgrim"] = EnsureController("Actor_Pilgrim", ActorStates),
+                ["StrayDog"] = EnsureController("Actor_StrayDog", ActorStates),
             };
             AssetDatabase.SaveAssets();
             return result;
         }
+
+        static readonly string[] ActorStates = { AnimStates.Idle, AnimStates.Move };
 
         static AnimatorController EnsureController(string name, string[] states)
         {
