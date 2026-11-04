@@ -9,21 +9,50 @@ story are added.
 
 ## Getting started
 
-1. Install **Unity 6** (6000.0 LTS or newer) through Unity Hub.
-2. In Unity Hub choose **Add > Add project from disk** and select this folder. If Hub
-   offers a newer editor version, accept it.
-3. When Unity asks *"enable the new input system backends?"*, click **Yes** (Unity restarts).
+### 1. Install Unity
+1. Download and install **Unity Hub** from [unity.com/download](https://unity.com/download)
+   (Windows 10/11 64-bit, macOS, or Ubuntu).
+2. Open Unity Hub and sign in (a free Unity account is fine). If it asks about a license,
+   choose the free **Personal** license (*Hub > Preferences > Licenses > Add*).
+3. In **Installs > Install Editor**, pick **Unity 6.3 (LTS)**. Optional modules:
+   *Microsoft Visual Studio Community* (to read or edit code) and build support for your
+   own platform. Plan for 10+ GB of disk space.
+
+### 2. Get the project
+The code is on the branch `claude/wizardly-hypatia-1ievvb`. Any of these work:
+- **GitHub Desktop (easiest to keep updated):** *File > Clone repository > clementptom/alma*,
+  then switch *Current branch* to `claude/wizardly-hypatia-1ievvb`. Later, *Fetch origin / Pull*
+  brings in new changes.
+- **ZIP:** on GitHub, switch to that branch, then *Code > Download ZIP*, and unzip it.
+- **Command line:** `git clone -b claude/wizardly-hypatia-1ievvb https://github.com/clementptom/alma.git`
+
+### 3. Open it
+1. In Unity Hub choose **Projects > Add > Add project from disk** and select the folder that
+   contains `Assets`, `Packages` and `ProjectSettings`.
+2. If Hub says the editor version doesn't match, choose your installed **Unity 6.3** and continue.
+   The first import takes a few minutes.
+3. When Unity asks to *enable the new input system backends*, click **Yes**. Unity restarts.
    If no prompt appears, set *Edit > Project Settings > Player > Active Input Handling* to
    **Input System Package (New)** or **Both**.
-4. On first open the project creates its physics layers and data assets on its own.
-5. Run **Alma > Build Greybox Demo** from the top menu. This generates placeholder sprites,
-   prefabs and three playable scenes.
-6. Open `Assets/Alma/Scenes/MainMenu.unity` and press **Play**. You can also open `Area1` or
-   `Area2` and press Play to test a level directly; that uses a separate debug save.
+4. Physics layers and data assets are created automatically on first open.
 
-> If Unity reports a package version it can't find, open `Packages/manifest.json` and change
-> that package's version to the one *Window > Package Manager* offers (or remove the line and
-> install the package from there). The game needs **Input System**, **Timeline** and **Unity UI**.
+### 4. Play
+1. Run **Alma > Build Greybox Demo** from the top menu bar (it generates placeholder sprites,
+   prefabs and three scenes).
+2. Open `Assets/Alma/Scenes/MainMenu.unity` and press **Play** (top center). Click inside
+   the Game view so it receives keyboard input. Choose *Play*, then a save slot.
+3. You can also open `Area1` or `Area2` and press Play to test a level directly; that uses a
+   separate debug save.
+
+### If something goes wrong
+- **"Enter Safe Mode?"** means scripts failed to compile. Choose *Enter Safe Mode*, open
+  *Window > General > Console*, and send me the red error lines.
+- **No Alma menu:** scripts haven't compiled yet. Check the Console for red errors.
+- **Package errors:** if Unity reports a package version it can't find, open
+  `Packages/manifest.json` and change it to the version *Window > Package Manager* offers
+  (or remove the line and install it there). The game needs **Input System**, **Timeline**
+  and **Unity UI**.
+- Grey "[Audio] No clip assigned" messages are expected until sounds are added.
 
 ## Controls
 
