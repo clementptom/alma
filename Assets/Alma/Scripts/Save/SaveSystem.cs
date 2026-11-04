@@ -23,6 +23,26 @@ namespace Alma
 
         public static bool Exists(int slot) => File.Exists(PathFor(slot)) || File.Exists(PathFor(slot) + ".bak");
 
+        /// <summary>The slot saved most recently, or -1 if there are no saves.</summary>
+        public static int LatestSlot()
+        {
+            int best = -1;
+            string bestTime = null;
+            for (int i = 0; i < SlotCount; i++)
+            {
+                if (!Exists(i)) continue;
+                var data = Load(i);
+                if (data == null) continue;
+                // ISO 8601 timestamps sort correctly as text.
+                if (best < 0 || string.CompareOrdinal(data.savedAtUtc, bestTime) > 0)
+                {
+                    best = i;
+                    bestTime = data.savedAtUtc;
+                }
+            }
+            return best;
+        }
+
         public static bool Save(int slot, SaveData data)
         {
             if (data == null) return false;

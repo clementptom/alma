@@ -7,7 +7,7 @@ namespace Alma
     /// <summary>
     /// Testing shortcuts, active in the editor and development builds only.
     ///   F1  unlock every ability
-    ///   F2  refill health
+    ///   F2  refill health and energy
     ///   F3  +100 currency
     ///   F4  toggle god mode
     ///   F5  save now
@@ -30,7 +30,8 @@ namespace Alma
             if (keyboard.f2Key.wasPressedThisFrame && player != null)
             {
                 player.PlayerHealth.Health.HealFull();
-                GameEvents.RaiseToast("[Cheat] Healed");
+                if (player.Energy != null) player.Energy.SetCurrent(player.Energy.Max);
+                GameEvents.RaiseToast("[Cheat] Healed and energy refilled");
             }
             if (keyboard.f3Key.wasPressedThisFrame)
             {

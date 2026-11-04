@@ -93,7 +93,8 @@ namespace Alma
             var input = InputReader.Instance;
             var gm = GameManager.Instance;
             bool canAttack = input != null && (gm == null || gm.State == GameState.Playing)
-                             && !controller.IsFrozen && !controller.IsDashing && !controller.PlayerHealth.IsDead;
+                             && !controller.IsFrozen && !controller.IsDashing && !controller.PlayerHealth.IsDead
+                             && (controller.Energy == null || !controller.Energy.IsHealing);
             if (!canAttack)
             {
                 bufferTimer = 0f;
@@ -192,7 +193,11 @@ namespace Alma
                 if (!target.TakeDamage(info)) continue;
 
                 newHit = true;
-                if (col.GetComponentInParent<Enemy>() != null) hitEnemy = true;
+                if (col.GetComponentInParent<Enemy>() != null)
+                {
+                    hitEnemy = true;
+                    if (controller.Energy != null) controller.Energy.OnEnemyHit();
+                }
                 EffectsManager.Spawn(EffectIds.HitSpark, col.ClosestPoint(controller.Center));
             }
 

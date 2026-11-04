@@ -33,7 +33,9 @@ namespace Alma.EditorTools
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;
 
             if (!Layers.AllLayersExist()) CreateLayers();
-            if (AssetDatabase.LoadAssetAtPath<AudioLibrary>(ResourcesFolder + "/AudioLibrary.asset") == null) CreateDataAssets();
+            if (AssetDatabase.LoadAssetAtPath<AudioLibrary>(ResourcesFolder + "/AudioLibrary.asset") == null
+                || AssetDatabase.LoadAssetAtPath<ItemDatabase>(ResourcesFolder + "/ItemDatabase.asset") == null)
+                CreateDataAssets();
         }
 
         // ------------------------------------------------------------- Layers
@@ -120,8 +122,16 @@ namespace Alma.EditorTools
             }
             EditorUtility.SetDirty(effects);
 
+            var items = LoadOrCreate<ItemDatabase>(ResourcesFolder + "/ItemDatabase.asset");
+            foreach (AbilityType ability in System.Enum.GetValues(typeof(AbilityType)))
+            {
+                if (!items.abilities.Any(a => a != null && a.ability == ability))
+                    items.abilities.Add(new AbilityDefinition { ability = ability });
+            }
+            EditorUtility.SetDirty(items);
+
             AssetDatabase.SaveAssets();
-            Debug.Log("[Alma] Data assets are ready in " + ResourcesFolder + " (GameConfig, AudioLibrary, EffectsLibrary, UISkin).");
+            Debug.Log("[Alma] Data assets are ready in " + ResourcesFolder + " (GameConfig, AudioLibrary, EffectsLibrary, UISkin, ItemDatabase).");
         }
 
         static IEnumerable<string> ConstantsOf(System.Type type)
@@ -152,6 +162,9 @@ namespace Alma.EditorTools
                 ["NPC"] = EnsureController("NPC", new[] { AnimStates.Idle }),
                 ["SaveStation"] = EnsureController("SaveStation", new[] { AnimStates.Idle, AnimStates.Active }),
                 ["Lever"] = EnsureController("Lever", new[] { AnimStates.Idle, AnimStates.Active }),
+                ["Shopkeeper"] = EnsureController("Shopkeeper", new[] { AnimStates.Idle }),
+                ["FastTravel"] = EnsureController("FastTravelPoint", new[] { AnimStates.Idle, AnimStates.Active }),
+                ["BouncePad"] = EnsureController("BouncePad", new[] { AnimStates.Idle, AnimStates.Active }),
             };
             AssetDatabase.SaveAssets();
             return result;

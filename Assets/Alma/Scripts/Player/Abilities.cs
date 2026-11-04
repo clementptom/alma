@@ -13,10 +13,16 @@ namespace Alma
         Glide
     }
 
+    /// <summary>
+    /// Names, descriptions and icons for abilities. Values set in Resources/ItemDatabase win;
+    /// the built-in text below is the fallback.
+    /// </summary>
     public static class AbilityInfo
     {
         public static string DisplayName(AbilityType ability)
         {
+            var def = ItemDatabase.Get().FindAbility(ability);
+            if (def != null && !string.IsNullOrEmpty(def.displayName)) return def.displayName;
             switch (ability)
             {
                 case AbilityType.Dash: return "Dash";
@@ -29,6 +35,8 @@ namespace Alma
 
         public static string Description(AbilityType ability)
         {
+            var def = ItemDatabase.Get().FindAbility(ability);
+            if (def != null && !string.IsNullOrEmpty(def.description)) return def.description;
             switch (ability)
             {
                 case AbilityType.Dash: return "Press DASH to dash forward. Works once in the air.";
@@ -37,6 +45,12 @@ namespace Alma
                 case AbilityType.Glide: return "Hold JUMP while falling to glide.";
                 default: return "";
             }
+        }
+
+        public static UnityEngine.Sprite Icon(AbilityType ability)
+        {
+            var def = ItemDatabase.Get().FindAbility(ability);
+            return def != null ? def.icon : null;
         }
     }
 }

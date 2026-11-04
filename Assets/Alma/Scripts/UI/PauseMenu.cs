@@ -18,8 +18,8 @@ namespace Alma
             dim.raycastTarget = true;
 
             var box = UIBuilder.CreatePanel(transform, "Box");
-            UIBuilder.Place(box.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(760f, 720f));
-            UIBuilder.AddVerticalLayout(box.gameObject, 22f, 40);
+            UIBuilder.Place(box.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(760f, 880f));
+            UIBuilder.AddVerticalLayout(box.gameObject, 18f, 36);
 
             var title = UIBuilder.CreateText(box.transform, "Title", "Paused", 60, TextAnchor.MiddleCenter, UIBuilder.Skin.accentColor);
             title.rectTransform.sizeDelta = new Vector2(600f, 90f);
@@ -27,6 +27,8 @@ namespace Alma
             var audio = AudioManager.Instance;
             var size = new Vector2(520f, 72f);
             resume = UIBuilder.CreateButton(box.transform, "Resume", "Resume", OnResume, size);
+            var inventory = UIBuilder.CreateButton(box.transform, "Inventory", "Inventory", () => OpenOverlay(UIManager.Instance.Inventory), size);
+            var controls = UIBuilder.CreateButton(box.transform, "Controls", "Controls", () => OpenOverlay(UIManager.Instance.Controls), size);
             music = UIBuilder.CreateSlider(box.transform, "Music", "Music", audio != null ? audio.MusicVolume : 0.8f,
                 v => { if (AudioManager.Instance != null) AudioManager.Instance.SetMusicVolume(v); });
             sfx = UIBuilder.CreateSlider(box.transform, "SFX", "Sound", audio != null ? audio.SfxVolume : 1f,
@@ -35,7 +37,7 @@ namespace Alma
             shakeLabel = shake.GetComponentInChildren<Text>();
             var quit = UIBuilder.CreateButton(box.transform, "Quit", "Quit to Title", OnQuit, size);
 
-            UIBuilder.ChainNavigation(resume, music, sfx, shake, quit);
+            UIBuilder.ChainNavigation(resume, inventory, controls, music, sfx, shake, quit);
             RefreshShakeLabel();
             SetVisible(false);
         }
@@ -60,6 +62,11 @@ namespace Alma
             IsOpen = false;
             SetVisible(false);
             UIManager.Select(null);
+        }
+
+        static void OpenOverlay(OverlayPanel panel)
+        {
+            if (GameManager.Instance != null) GameManager.Instance.OpenOverlay(panel);
         }
 
         void OnResume()

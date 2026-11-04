@@ -62,6 +62,7 @@ namespace Alma
         {
             if (State == newState) return;
             State = newState;
+            stateChangedFrame = Time.frameCount;
             var input = InputReader.Instance;
             if (input != null) input.GameplayEnabled = newState == GameState.Playing;
             ApplyTimeScale();
@@ -70,7 +71,8 @@ namespace Alma
 
         void ApplyTimeScale()
         {
-            bool frozen = State == GameState.Paused || State == GameState.Map || State == GameState.Popup;
+            bool frozen = State == GameState.Paused || State == GameState.Map || State == GameState.Popup
+                          || State == GameState.Overlay;
             if (frozen) Time.timeScale = 0f;
             else if (hitStopTimer > 0f) Time.timeScale = 0.02f;
             else Time.timeScale = 1f;
@@ -97,17 +99,56 @@ namespace Alma
 
             var input = InputReader.Instance;
             if (input == null || !IsInGameplayScene) return;
+            // One menu action per frame: the press that just changed state shouldn't also act again.
+            if (Time.frameCount == stateChangedFrame) return;
 
-            if (input.PausePressed)
+            switch (State)
             {
-                if (State == GameState.Playing) Pause();
-                else if (State == GameState.Paused) Resume();
-                else if (State == GameState.Map) CloseMap();
+                case GameState.Playing:
+                    if (input.PausePressed) Pause();
+                    else if (input.MapPressed) OpenMap();
+                    else if (input.InventoryPressed && UIManager.Instance != null) OpenOverlay(UIManager.Instance.Inventory);
+                    break;
+                case GameState.Paused:
+                    if (input.PausePressed || input.CancelPressed) Resume();
+                    break;
+                case GameState.Map:
+                    if (input.MapPressed || input.PausePressed || input.CancelPressed) CloseMap();
+                    break;
+                // Overlay panels handle their own Back input.
             }
-            else if (input.MapPressed)
+        }
+
+        int stateChangedFrame = -1;
+        OverlayPanel overlay;
+        GameState stateBeforeOverlay;
+
+        /// <summary>Opens a full-screen menu and pauses the world. From the pause menu, closing it returns there.</summary>
+        public void OpenOverlay(OverlayPanel panel)
+        {
+            if (panel == null || overlay != null) return;
+            if (State != GameState.Playing && State != GameState.Paused) return;
+            stateBeforeOverlay = State;
+            if (State == GameState.Paused && UIManager.Instance != null) UIManager.Instance.Pause.Hide();
+            overlay = panel;
+            SetState(GameState.Overlay);
+            panel.ShowFromGameManager();
+        }
+
+        public void CloseOverlay()
+        {
+            if (overlay == null) return;
+            var panel = overlay;
+            overlay = null;
+            panel.HideFromGameManager();
+            if (stateBeforeOverlay == GameState.Paused)
             {
-                if (State == GameState.Playing) OpenMap();
-                else if (State == GameState.Map) CloseMap();
+                SetState(GameState.Paused);
+                if (UIManager.Instance != null) UIManager.Instance.Pause.Show();
+            }
+            else
+            {
+                SetState(GameState.Playing);
             }
         }
 
@@ -193,6 +234,11 @@ namespace Alma
 
         public void QuitToMainMenu()
         {
+            if (overlay != null)
+            {
+                overlay.HideFromGameManager();
+                overlay = null;
+            }
             if (UIManager.Instance != null)
             {
                 UIManager.Instance.Pause.Hide();
@@ -207,6 +253,7 @@ namespace Alma
             var data = new SaveData
             {
                 maxHealth = Mathf.Max(1, Config.startingMaxHealth),
+                maxEnergy = Mathf.Max(0, Config.startingMaxEnergy),
                 respawnScene = Config.startScene,
                 respawnPointId = Config.startSpawnId
             };
@@ -230,6 +277,7 @@ namespace Alma
         public void Save()
         {
             if (Data == null) return;
+            if (Player != null && Player.Energy != null) Data.energy = Player.Energy.Current;
             if (SaveSystem.Save(Slot, Data)) GameEvents.RaiseGameSaved();
         }
 
@@ -238,7 +286,44 @@ namespace Alma
             if (Data == null) return;
             Data.respawnScene = SceneManager.GetActiveScene().name;
             Data.respawnPointId = station.SpawnId;
+            var room = RoomTracker.Instance != null ? RoomTracker.Instance.Current : null;
+            Data.locationName = room != null ? room.displayName : Data.respawnScene;
+            RecordMarker(station.SpawnId, MapMarkerRecord.SaveStation, Data.locationName, station.transform.position);
             Save();
+        }
+
+        /// <summary>Adds or updates a map marker. Returns true if it's new.</summary>
+        public bool RecordMarker(string id, string kind, string label, Vector2 position)
+        {
+            if (Data == null || string.IsNullOrEmpty(id)) return false;
+            var marker = Data.FindMarker(id);
+            bool isNew = marker == null;
+            if (isNew)
+            {
+                marker = new MapMarkerRecord { id = id };
+                Data.markers.Add(marker);
+            }
+            marker.kind = kind;
+            marker.label = label;
+            marker.scene = SceneManager.GetActiveScene().name;
+            marker.x = position.x;
+            marker.y = position.y;
+            return isNew;
+        }
+
+        public void RegisterTravelPoint(FastTravelPoint point)
+        {
+            if (point == null) return;
+            RecordMarker(point.SpawnId, MapMarkerRecord.Travel, point.pointName, point.transform.position);
+        }
+
+        /// <summary>Closes the travel menu and takes the player to another travel point.</summary>
+        public void FastTravel(MapMarkerRecord destination)
+        {
+            if (destination == null) return;
+            CloseOverlay();
+            AudioManager.PlaySfx(AudioIds.TravelDepart);
+            SceneLoader.Instance.Travel(destination.scene, destination.id);
         }
 
         // ======================================================= Progress API
@@ -292,6 +377,13 @@ namespace Alma
             if (Data == null) return;
             Data.maxHealth += amount;
             if (Player != null) Player.PlayerHealth.ApplySave(Data.maxHealth, true);
+        }
+
+        public void AddMaxEnergy(int amount)
+        {
+            if (Data == null) return;
+            Data.maxEnergy = Mathf.Max(0, Data.maxEnergy + amount);
+            if (Player != null && Player.Energy != null) Player.Energy.SetMax(Data.maxEnergy, true);
         }
 
         public void DiscoverRoom(Room room)
@@ -399,7 +491,10 @@ namespace Alma
 
             bool playerFromScene = PlayerController.Instance != null && !playerHealthInitialized;
             var player = EnsurePlayer();
-            player.PlayerHealth.ApplySave(Data.maxHealth, player.PlayerHealth.IsDead || !playerHealthInitialized);
+            bool freshPlayer = !playerHealthInitialized;
+            player.PlayerHealth.ApplySave(Data.maxHealth, player.PlayerHealth.IsDead || freshPlayer);
+            player.Energy.SetMax(Data.maxEnergy, false);
+            if (freshPlayer) player.Energy.SetCurrent(Data.energy);
             playerHealthInitialized = true;
             PlacePlayer(player, playerFromScene);
 

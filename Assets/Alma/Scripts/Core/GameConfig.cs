@@ -12,6 +12,8 @@ namespace Alma
         Dialogue,
         Cutscene,
         Popup,
+        /// <summary>A full-screen menu (inventory, shop, fast travel, controls) is open.</summary>
+        Overlay,
         Transition,
         Dead
     }
@@ -34,11 +36,15 @@ namespace Alma
         [Tooltip("Prefab spawned when a gameplay scene has no player. If empty, uses Resources/Player, then a generated placeholder.")]
         public GameObject playerPrefab;
         public int startingMaxHealth = 5;
+        [Tooltip("Energy capacity at the start. With the default heal cost of 33, 99 = three heals.")]
+        public int startingMaxEnergy = 99;
         [Range(0f, 1f)] public float currencyLostOnDeath = 0f;
 
         [Header("Story")]
         [Tooltip("Optional video played when the player starts a new game.")]
         public VideoClip introCinematic;
+        [Tooltip("Text scrolled by the end credits (one line per line). Empty uses a built-in placeholder.")]
+        public TextAsset credits;
 
         [Header("Debug")]
         [Tooltip("When you press Play directly inside a level (not via the menu), unlock every ability.")]

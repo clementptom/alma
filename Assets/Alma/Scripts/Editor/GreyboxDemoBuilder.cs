@@ -156,6 +156,9 @@ namespace Alma.EditorTools
             prefabs["AbilityPickup"] = SavePrefab(MakeAbilityPickup(), PrefabFolder + "/Pickups/AbilityPickup.prefab");
             prefabs["HealthUpgrade"] = SavePrefab(MakeHealthUpgrade(), PrefabFolder + "/Pickups/HealthUpgrade.prefab");
             prefabs["KeyItem"] = SavePrefab(MakeKeyItem(), PrefabFolder + "/Pickups/KeyItem.prefab");
+            prefabs["EnergyUpgrade"] = SavePrefab(MakeEnergyUpgrade(), PrefabFolder + "/Pickups/EnergyUpgrade.prefab");
+            prefabs["Shopkeeper"] = SavePrefab(MakeShopkeeper(), PrefabFolder + "/World/Shopkeeper.prefab");
+            prefabs["FastTravel"] = SavePrefab(MakeFastTravel(), PrefabFolder + "/World/FastTravelPoint.prefab");
 
             // Building blocks for your own levels (scenes below create these directly, sized per use).
             SavePrefab(MakeGate(4f), PrefabFolder + "/World/Gate.prefab");
@@ -164,6 +167,8 @@ namespace Alma.EditorTools
             SavePrefab(MakeOneWay(4f), PrefabFolder + "/World/OneWayPlatform.prefab");
             SavePrefab(MakeMovingPlatform(3f), PrefabFolder + "/World/MovingPlatform.prefab");
             SavePrefab(MakeDoor(), PrefabFolder + "/World/Door.prefab");
+            SavePrefab(MakeCrumbling(3f), PrefabFolder + "/World/CrumblingPlatform.prefab");
+            SavePrefab(MakeBouncePad(), PrefabFolder + "/World/BouncePad.prefab");
         }
 
         static GameObject SavePrefab(GameObject go, string path)
@@ -386,6 +391,64 @@ namespace Alma.EditorTools
             return go;
         }
 
+        static GameObject MakeEnergyUpgrade()
+        {
+            var go = MakePickupBase("EnergyUpgrade", new Color(0.45f, 0.8f, 1f), circle, 0.6f);
+            go.AddComponent<EnergyUpgradePickup>();
+            return go;
+        }
+
+        static GameObject MakeShopkeeper()
+        {
+            var go = NewObject("Shopkeeper");
+            var visual = AddVisual(go, square, new Color(0.85f, 0.65f, 0.35f), new Vector2(1f, 1.6f), new Vector2(0f, 0.8f), 8);
+            AddEye(visual, new Vector2(0.25f, 1.3f));
+            AddAnimator(visual, "Shopkeeper");
+            var shop = go.AddComponent<Shopkeeper>();
+            shop.visual = visual;
+            return go;
+        }
+
+        static GameObject MakeFastTravel()
+        {
+            var go = NewObject("FastTravelPoint");
+            var visual = AddVisual(go, circle, new Color(0.7f, 0.5f, 1f), new Vector2(1.1f, 1.1f), new Vector2(0f, 1.3f), 5);
+            var pedestal = new GameObject("Pedestal");
+            pedestal.transform.SetParent(visual, false);
+            pedestal.transform.localPosition = new Vector3(0f, 0.3f, 0f);
+            pedestal.transform.localScale = new Vector3(1.2f, 0.6f, 1f);
+            var sr = pedestal.AddComponent<SpriteRenderer>();
+            sr.sprite = square;
+            sr.color = new Color(0.4f, 0.35f, 0.5f);
+            sr.sortingOrder = 4;
+            AddAnimator(visual, "FastTravel");
+            go.AddComponent<FastTravelPoint>();
+            return go;
+        }
+
+        static GameObject MakeCrumbling(float width)
+        {
+            var go = NewObject("CrumblingPlatform", Layers.Ground);
+            var col = go.AddComponent<BoxCollider2D>();
+            col.size = new Vector2(width, 0.5f);
+            col.offset = new Vector2(0f, -0.25f);
+            AddVisual(go, square, new Color(0.62f, 0.5f, 0.38f), new Vector2(width, 0.5f), new Vector2(0f, -0.25f), 1);
+            go.AddComponent<CrumblingPlatform>();
+            return go;
+        }
+
+        static GameObject MakeBouncePad()
+        {
+            var go = NewObject("BouncePad", Layers.Ground);
+            var col = go.AddComponent<BoxCollider2D>();
+            col.size = new Vector2(1.4f, 0.4f);
+            col.offset = new Vector2(0f, 0.2f);
+            var visual = AddVisual(go, square, new Color(0.4f, 0.95f, 0.5f), new Vector2(1.4f, 0.4f), new Vector2(0f, 0.2f), 3);
+            AddAnimator(visual, "BouncePad");
+            go.AddComponent<BouncePad>();
+            return go;
+        }
+
         static GameObject MakeKeyItem()
         {
             var go = MakePickupBase("KeyItem", new Color(1f, 0.85f, 0.35f), square, 0.5f);
@@ -477,7 +540,30 @@ namespace Alma.EditorTools
             config.startScene = "Area1";
             config.startSpawnId = "start";
             config.playerPrefab = prefabs["Player"];
+
+            // Placeholder credits text you can edit.
+            string folder = Root + "/Text";
+            string creditsPath = folder + "/Credits.txt";
+            AlmaProjectSetup.EnsureFolder(folder);
+            if (!File.Exists(creditsPath))
+            {
+                File.WriteAllText(creditsPath, CreditsUI.PlaceholderCredits);
+                AssetDatabase.ImportAsset(creditsPath);
+            }
+            config.credits = AssetDatabase.LoadAssetAtPath<TextAsset>(creditsPath);
             EditorUtility.SetDirty(config);
+
+            // Names for the demo's items.
+            var items = AlmaProjectSetup.LoadOrCreate<ItemDatabase>(AlmaProjectSetup.ResourcesFolder + "/ItemDatabase.asset");
+            AddItem(items, "key_arena", "Arena Key", "A heavy iron key. It opens the gate to the Brute's arena.");
+            AddItem(items, "old_lantern", "Old Lantern", "Sold by a wandering merchant. It doesn't seem to do anything... yet.");
+            EditorUtility.SetDirty(items);
+        }
+
+        static void AddItem(ItemDatabase db, string id, string name, string description)
+        {
+            if (db.FindItem(id) != null) return;
+            db.items.Add(new ItemDefinition { id = id, displayName = name, description = description, category = ItemCategory.KeyItem });
         }
 
         static void ConfigureBuildSettings()
@@ -663,12 +749,30 @@ namespace Alma.EditorTools
                 Line("", "Move with A/D or the stick. Jump with SPACE (A). Hold it to jump higher."),
                 Line("", "Strike with J (X). Hold UP or DOWN while striking to aim. Hit things below you mid-air to bounce."),
                 Line("", "That bench behind me lets you rest. Resting saves your progress."),
+                Line("", "Striking enemies fills your energy. Stand still and hold L (B) to turn it into health."),
                 Line("", "The gate ahead is shut. Pull the lever up high. Or hit it, if you're the impatient sort."),
             };
             npc.repeatLines = new[] { Line("", "Rest when you can. The deep doesn't forgive.") };
             Record(npc);
 
+            var merchant = Spawn<Shopkeeper>("Shopkeeper", 15.5f, 0f, "a1_merchant");
+            merchant.shopName = "Wandering Merchant";
+            merchant.greeting = new[]
+            {
+                Line("Merchant", "Oh! A customer, down here? Have a look, have a look."),
+                Line("Merchant", "Bring me the shards those creatures drop and we'll do business."),
+            };
+            merchant.stock = new[]
+            {
+                // Cheap enough to afford from the demo's enemy drops (F3 cheat: +100).
+                new ShopEntry { type = ShopItemType.MaxHealth, amount = 1, price = 20 },
+                new ShopEntry { type = ShopItemType.MaxEnergy, amount = 33, price = 30 },
+                new ShopEntry { type = ShopItemType.KeyItem, itemId = "old_lantern", price = 8 },
+            };
+            Record(merchant);
+
             Spawn<WalkerEnemy>("Walker", 26f, 0f);
+            Put(MakeBouncePad(), 35f, 0f);            // optional springboard up to the lever
             Spawn<FlyerEnemy>("Flyer", 36f, 9f);
 
             // Lever on the high platform opens the gate to the hall
@@ -680,6 +784,10 @@ namespace Alma.EditorTools
 
             // ---- Room: Hall (x 48..100) ----
             RoomArea("a1_room_hall", "Great Hall", 48f, -6f, 98f, 22f, AudioIds.MusicArea1, AudioIds.AmbienceArea1);
+            var hallShrine = Spawn<FastTravelPoint>("FastTravel", 51.5f, 0f, "a1_travel_hall");
+            hallShrine.pointName = "Great Hall Shrine";
+            Record(hallShrine);
+
             OneWay(56f, 60f, 3f);
             var dash = Spawn<AbilityPickup>("AbilityPickup", 58f, 4f, "a1_ability_dash");
             dash.ability = AbilityType.Dash;
@@ -696,6 +804,7 @@ namespace Alma.EditorTools
             mover.waitAtEachPoint = 0.8f;
             mover.speed = 3f;
             Block(84f, 0f, 86f, 9f, WallColor, "Tall Wall");
+            Spawn<EnergyUpgradePickup>("EnergyUpgrade", 85f, 10f, "a1_energy_upgrade");
             OneWay(88f, 91f, 3f);                     // steps back over the wall when returning
             OneWay(86f, 88.5f, 6.2f);
 
@@ -742,6 +851,9 @@ namespace Alma.EditorTools
             spawn.transform.position = new Vector3(102f, 0f, 0f);
 
             Spawn<SaveStation>("SaveStation", 105f, 0f, "a2_save");
+            var galleryShrine = Spawn<FastTravelPoint>("FastTravel", 113f, 0f, "a2_travel_gallery");
+            galleryShrine.pointName = "Gallery Shrine";
+            Record(galleryShrine);
 
             // A one-time story moment when you first walk in
             var cutsceneGo = new GameObject("Cutscene - Gallery Voice");
@@ -762,7 +874,8 @@ namespace Alma.EditorTools
             Spawn<ShooterEnemy>("Shooter", 119f, 4f);
 
             OneWay(125f, 128f, 3f);
-            OneWay(130f, 133f, 6.2f);
+            var crumble = Put(MakeCrumbling(3f), 131.5f, 6.2f); // falls apart shortly after you land
+            crumble.name = "CrumblingPlatform";
             OneWay(125f, 128f, 9.4f);
             var key = Spawn<KeyItemPickup>("KeyItem", 126.5f, 10.4f, "a2_key_arena");
             key.itemId = "key_arena";
@@ -822,6 +935,20 @@ namespace Alma.EditorTools
             var glide = Spawn<AbilityPickup>("AbilityPickup", 192f, 27.2f, "a2_ability_glide");
             glide.ability = AbilityType.Glide;
             Record(glide);
+
+            // End of the demo: walking to the far end of the summit rolls the credits.
+            var endingGo = new GameObject("GameEnding");
+            endingGo.transform.position = new Vector3(195f, 28f, 0f);
+            var endArea = endingGo.AddComponent<BoxCollider2D>();
+            endArea.isTrigger = true;
+            endArea.size = new Vector2(2f, 4f);
+            var ending = endingGo.AddComponent<GameEnding>();
+            ending.area = endArea;
+            ending.finalDialogue = new[]
+            {
+                Line("???", "So you made it to the top."),
+                Line("???", "This is as far as the world goes... for now."),
+            };
 
             SaveScene("Area2");
         }

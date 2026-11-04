@@ -22,5 +22,9 @@ namespace Alma
         public const string PickupSparkle = "fx_pickup_sparkle";
         public const string SaveStation = "fx_save_station";
         public const string AbilityGet = "fx_ability_get";
+        public const string HealCharge = "fx_heal_charge";
+        public const string Heal = "fx_heal";
+        public const string Travel = "fx_travel";
+        public const string Bounce = "fx_bounce";
     }
 }

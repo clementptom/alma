@@ -53,6 +53,7 @@ namespace Alma
         {
             if (health != null && health.IsDead) return AnimStates.Death;
             if (hurtTimer > 0f) return AnimStates.Hurt;
+            if (controller.Energy != null && controller.Energy.IsHealing) return AnimStates.Heal;
             if (controller.IsDashing) return AnimStates.Dash;
             if (combat.IsAttacking)
             {

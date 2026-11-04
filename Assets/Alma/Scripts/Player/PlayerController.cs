@@ -91,6 +91,10 @@ namespace Alma
         public CapsuleCollider2D Collider => col;
         public PlayerHealth PlayerHealth { get; private set; }
         public PlayerCombat Combat { get; private set; }
+        public PlayerEnergy Energy { get; private set; }
+        /// <summary>The collider we're standing on (null in the air).</summary>
+        public Collider2D GroundCollider => groundCollider;
+        bool IsHealing => Energy != null && Energy.IsHealing;
         public Vector2 LastSafePosition => lastSafePosition;
 
         Rigidbody2D rb;
@@ -154,6 +158,8 @@ namespace Alma
             col = GetComponent<CapsuleCollider2D>();
             PlayerHealth = GetComponent<PlayerHealth>();
             Combat = GetComponent<PlayerCombat>();
+            Energy = GetComponent<PlayerEnergy>();
+            if (Energy == null) Energy = gameObject.AddComponent<PlayerEnergy>();
 
             if (frictionless == null) frictionless = new PhysicsMaterial2D("PlayerFrictionless") { friction = 0f, bounciness = 0f };
             rb.sharedMaterial = frictionless;
@@ -224,7 +230,14 @@ namespace Alma
             var input = InputReader.Instance;
             if (input == null) return;
 
-            if (CanControl)
+            if (CanControl && IsHealing)
+            {
+                // Rooted in place while healing.
+                InputX = 0;
+                InputY = 0;
+                jumpHeld = false;
+            }
+            else if (CanControl)
             {
                 InputX = input.MoveX;
                 InputY = input.MoveY;
@@ -283,6 +296,16 @@ namespace Alma
             if (IsDashing)
             {
                 DashStep(dt);
+                return;
+            }
+
+            if (IsHealing)
+            {
+                moveX = Mathf.MoveTowards(moveX, 0f, groundDeceleration * dt);
+                IsWallSliding = false;
+                IsGliding = false;
+                rb.gravityScale = baseGravityScale;
+                rb.linearVelocity = new Vector2(moveX, Mathf.Max(rb.linearVelocity.y, -maxFallSpeed));
                 return;
             }
 

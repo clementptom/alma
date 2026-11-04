@@ -26,6 +26,7 @@ namespace Alma
         public const string Attack2 = "Attack2";
         public const string AttackUp = "AttackUp";
         public const string AttackDown = "AttackDown";
+        public const string Heal = "Heal";
 
         // Enemies and bosses
         public const string Move = "Move";
@@ -43,7 +44,7 @@ namespace Alma
         public static readonly string[] PlayerStates =
         {
             Idle, Run, Jump, DoubleJump, Fall, Land, WallSlide, Dash, Glide,
-            Attack, Attack2, AttackUp, AttackDown, Hurt, Death
+            Attack, Attack2, AttackUp, AttackDown, Heal, Hurt, Death
         };
 
         public static readonly string[] EnemyStates = { Idle, Move, Attack, Hurt, Death };
@@ -67,6 +68,7 @@ namespace Alma
             { AnimStates.WallSlide, AnimStates.Fall },
             { AnimStates.Fall, AnimStates.Jump },
             { AnimStates.Land, AnimStates.Idle },
+            { AnimStates.Heal, AnimStates.Idle },
             { AnimStates.Dash, AnimStates.Run },
             { AnimStates.Jump, AnimStates.Idle },
             { AnimStates.Run, AnimStates.Idle },

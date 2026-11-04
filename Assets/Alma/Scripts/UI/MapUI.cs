@@ -58,7 +58,7 @@ namespace Alma
             var current = RoomTracker.Instance != null ? RoomTracker.Instance.Current : null;
             title.text = current != null ? current.displayName : "Map";
             var input = InputReader.Instance;
-            footer.text = $"{(input != null ? input.PromptFor("Map") : "Map")} to close";
+            footer.text = $"Blue: save station     Purple: travel point     {(input != null ? input.PromptFor("Map") : "Map")} to close";
 
             if (gm == null || gm.Data == null || gm.Data.rooms.Count == 0) return;
             var rooms = gm.Data.rooms;
@@ -80,6 +80,21 @@ namespace Alma
                 rt.anchoredPosition = (r.Rect.center - world.center) * scale;
                 rt.sizeDelta = new Vector2(Mathf.Max(4f, r.width * scale - 6f), Mathf.Max(4f, r.height * scale - 6f));
                 spawned.Add(img.gameObject);
+            }
+
+            // Save stations and travel points
+            foreach (var m in gm.Data.markers)
+            {
+                bool travel = m.kind == MapMarkerRecord.Travel;
+                Sprite icon = travel ? skin.mapTravelIcon : skin.mapSaveIcon;
+                Color color = icon != null ? Color.white : (travel ? skin.mapTravelColor : skin.mapSaveColor);
+                var marker = UIBuilder.CreateImage(content, "Marker " + m.label, color, icon);
+                var mrt = marker.rectTransform;
+                mrt.anchorMin = mrt.anchorMax = new Vector2(0.5f, 0.5f);
+                mrt.sizeDelta = new Vector2(18f, 18f);
+                mrt.anchoredPosition = (m.Position - world.center) * scale;
+                if (travel) mrt.localRotation = Quaternion.Euler(0f, 0f, 45f);
+                spawned.Add(marker.gameObject);
             }
 
             var player = PlayerController.Instance;

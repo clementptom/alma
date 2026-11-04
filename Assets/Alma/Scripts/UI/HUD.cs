@@ -11,6 +11,9 @@ namespace Alma
     {
         RectTransform healthRow;
         readonly List<Image> pips = new List<Image>();
+        RectTransform energyRoot;
+        RectTransform energyFill;
+        Image energyFillImage;
         Text currencyText;
 
         RectTransform promptRoot;
@@ -39,11 +42,22 @@ namespace Alma
             layout.childForceExpandWidth = false;
             layout.childAlignment = TextAnchor.MiddleLeft;
 
+            // Energy meter
+            var energyFrame = UIBuilder.CreateImage(transform, "Energy", new Color(0f, 0f, 0f, 0.6f), skin.energyFrame);
+            energyRoot = energyFrame.rectTransform;
+            UIBuilder.Place(energyRoot, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(60f, -120f), new Vector2(320f, 20f));
+            energyFillImage = UIBuilder.CreateImage(energyRoot, "Fill", skin.energyColor, skin.energyFill);
+            energyFill = energyFillImage.rectTransform;
+            energyFill.anchorMin = Vector2.zero;
+            energyFill.anchorMax = new Vector2(0f, 1f);
+            energyFill.offsetMin = new Vector2(2f, 2f);
+            energyFill.offsetMax = new Vector2(-2f, -2f);
+
             var currencyIcon = UIBuilder.CreateImage(transform, "CurrencyIcon", skin.currencyColor, skin.currencyIcon);
             if (skin.currencyIcon != null) currencyIcon.color = Color.white;
-            UIBuilder.Place(currencyIcon.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(64f, -126f), new Vector2(36f, 36f));
+            UIBuilder.Place(currencyIcon.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(64f, -160f), new Vector2(36f, 36f));
             currencyText = UIBuilder.CreateText(transform, "Currency", "0", 36, TextAnchor.MiddleLeft);
-            UIBuilder.Place(currencyText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(112f, -120f), new Vector2(300f, 48f));
+            UIBuilder.Place(currencyText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(112f, -154f), new Vector2(300f, 48f));
 
             // Interaction prompt (follows the world position of the interactable).
             promptRoot = UIBuilder.CreatePanel(transform, "Prompt").rectTransform;
@@ -73,7 +87,13 @@ namespace Alma
             toastText.color = new Color(1f, 1f, 1f, 0f);
 
             GameEvents.PlayerHealthChanged += OnHealthChanged;
+            GameEvents.PlayerEnergyChanged += OnEnergyChanged;
             GameEvents.CurrencyChanged += OnCurrencyChanged;
+            if (InputReader.Instance != null)
+            {
+                InputReader.Instance.DeviceChanged += RefreshPrompt;
+                InputReader.Instance.BindingsChanged += RefreshPrompt;
+            }
             GameEvents.Toast += OnToast;
             GameEvents.BossStarted += OnBossStarted;
             GameEvents.BossDefeated += OnBossDefeated;
@@ -84,7 +104,13 @@ namespace Alma
         void OnDestroy()
         {
             GameEvents.PlayerHealthChanged -= OnHealthChanged;
+            GameEvents.PlayerEnergyChanged -= OnEnergyChanged;
             GameEvents.CurrencyChanged -= OnCurrencyChanged;
+            if (InputReader.Instance != null)
+            {
+                InputReader.Instance.DeviceChanged -= RefreshPrompt;
+                InputReader.Instance.BindingsChanged -= RefreshPrompt;
+            }
             GameEvents.Toast -= OnToast;
             GameEvents.BossStarted -= OnBossStarted;
             GameEvents.BossDefeated -= OnBossDefeated;
@@ -95,6 +121,8 @@ namespace Alma
             var player = PlayerController.Instance;
             if (player != null && player.PlayerHealth.Health != null)
                 OnHealthChanged(player.PlayerHealth.Health.Current, player.PlayerHealth.Health.Max);
+            if (player != null && player.Energy != null)
+                OnEnergyChanged(player.Energy.Current, player.Energy.Max);
             var gm = GameManager.Instance;
             OnCurrencyChanged(gm != null ? gm.Currency : 0);
             if (boss == null) bossRoot.gameObject.SetActive(false);
@@ -121,6 +149,19 @@ namespace Alma
             }
         }
 
+        void OnEnergyChanged(int current, int max)
+        {
+            energyRoot.gameObject.SetActive(max > 0);
+            if (max <= 0) return;
+            // The bar's width grows with the maximum, so upgrades are visible.
+            energyRoot.sizeDelta = new Vector2(Mathf.Clamp(max * 3.2f, 120f, 640f), energyRoot.sizeDelta.y);
+            energyFill.anchorMax = new Vector2(Mathf.Clamp01((float)current / max), 1f);
+            var player = PlayerController.Instance;
+            bool ready = player != null && player.Energy != null && player.Energy.CanAffordHeal;
+            var skin = UIBuilder.Skin;
+            if (skin.energyFill == null) energyFillImage.color = ready ? skin.energyReadyColor : skin.energyColor;
+        }
+
         void OnCurrencyChanged(int amount)
         {
             currencyText.text = amount.ToString();
@@ -139,6 +180,11 @@ namespace Alma
             promptText.text = $"[{key}]  {target.prompt}";
             promptRoot.gameObject.SetActive(true);
             PositionPrompt();
+        }
+
+        void RefreshPrompt()
+        {
+            if (promptTarget != null) SetPrompt(promptTarget);
         }
 
         void PositionPrompt()

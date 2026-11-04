@@ -127,6 +127,35 @@ namespace Alma
             return button;
         }
 
+        /// <summary>An item slot: icon on top, label below. Selectable for gamepad navigation.</summary>
+        public static Button CreateSlot(Transform parent, string name, Sprite icon, string label, Vector2 size, bool unlocked)
+        {
+            var bg = CreateImage(parent, name, Color.white, Skin.slotSprite != null ? Skin.slotSprite : Skin.buttonSprite);
+            bg.raycastTarget = true;
+            bg.rectTransform.sizeDelta = size;
+            var layout = bg.gameObject.AddComponent<LayoutElement>();
+            layout.preferredWidth = size.x;
+            layout.preferredHeight = size.y;
+
+            var button = bg.gameObject.AddComponent<Button>();
+            var colors = button.colors;
+            colors.normalColor = Skin.buttonColor;
+            colors.highlightedColor = Skin.buttonHighlightColor;
+            colors.selectedColor = Skin.accentColor;
+            colors.fadeDuration = 0.05f;
+            button.colors = colors;
+            button.targetGraphic = bg;
+
+            var iconImage = CreateImage(bg.transform, "Icon", unlocked ? Color.white : new Color(1f, 1f, 1f, 0.25f), icon);
+            iconImage.preserveAspect = true;
+            Place(iconImage.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -12f), new Vector2(size.x - 40f, size.y - 70f));
+            if (icon == null) iconImage.color = unlocked ? new Color(1f, 1f, 1f, 0.15f) : new Color(1f, 1f, 1f, 0.05f);
+
+            var text = CreateText(bg.transform, "Label", label, 22, TextAnchor.MiddleCenter);
+            Place(text.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 8f), new Vector2(size.x - 10f, 48f));
+            return button;
+        }
+
         public static Slider CreateSlider(Transform parent, string name, string label, float value, UnityAction<float> onChanged)
         {
             var row = CreateRect(name, parent);

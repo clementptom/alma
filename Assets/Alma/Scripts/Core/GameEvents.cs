@@ -11,6 +11,8 @@ namespace Alma
     {
         /// <summary>(current, max)</summary>
         public static event Action<int, int> PlayerHealthChanged;
+        /// <summary>(current, max)</summary>
+        public static event Action<int, int> PlayerEnergyChanged;
         public static event Action<int> CurrencyChanged;
         public static event Action<AbilityType> AbilityUnlocked;
         public static event Action<string> KeyItemAdded;
@@ -25,6 +27,7 @@ namespace Alma
         public static event Action<GameState> StateChanged;
 
         public static void RaisePlayerHealthChanged(int current, int max) => PlayerHealthChanged?.Invoke(current, max);
+        public static void RaisePlayerEnergyChanged(int current, int max) => PlayerEnergyChanged?.Invoke(current, max);
         public static void RaiseCurrencyChanged(int amount) => CurrencyChanged?.Invoke(amount);
         public static void RaiseAbilityUnlocked(AbilityType ability) => AbilityUnlocked?.Invoke(ability);
         public static void RaiseKeyItemAdded(string item) => KeyItemAdded?.Invoke(item);
@@ -42,6 +45,7 @@ namespace Alma
         static void ResetStatics()
         {
             PlayerHealthChanged = null;
+            PlayerEnergyChanged = null;
             CurrencyChanged = null;
             AbilityUnlocked = null;
             KeyItemAdded = null;

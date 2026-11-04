@@ -16,6 +16,22 @@ namespace Alma
         public Rect Rect => new Rect(x, y, width, height);
     }
 
+    /// <summary>A point of interest shown on the map: save stations and travel points.</summary>
+    [Serializable]
+    public class MapMarkerRecord
+    {
+        public const string SaveStation = "save";
+        public const string Travel = "travel";
+
+        public string id;
+        public string kind;
+        public string scene;
+        public string label;
+        public float x, y;
+
+        public Vector2 Position => new Vector2(x, y);
+    }
+
     /// <summary>
     /// All progress for one save slot. Serialized to JSON with JsonUtility, so it only
     /// uses fields, lists and serializable classes (no dictionaries or hash sets).
@@ -32,9 +48,13 @@ namespace Alma
         [Header("Where the player respawns")]
         public string respawnScene = "";
         public string respawnPointId = "";
+        [Tooltip("Name of the room where the game was last saved (shown on the save slot).")]
+        public string locationName = "";
 
         [Header("Player")]
         public int maxHealth = 5;
+        public int maxEnergy = 99;
+        public int energy;
         public int currency;
         public List<string> abilities = new List<string>();
         public List<string> keyItems = new List<string>();
@@ -43,6 +63,7 @@ namespace Alma
         /// <summary>Generic flags: collected pickups, opened gates, defeated bosses, seen cutscenes...</summary>
         public List<string> flags = new List<string>();
         public List<RoomRecord> rooms = new List<RoomRecord>();
+        public List<MapMarkerRecord> markers = new List<MapMarkerRecord>();
 
         [NonSerialized] HashSet<string> flagLookup;
 
@@ -83,6 +104,8 @@ namespace Alma
 
         public RoomRecord FindRoom(string roomId) => rooms.Find(r => r.id == roomId);
 
+        public MapMarkerRecord FindMarker(string markerId) => markers.Find(m => m.id == markerId);
+
         void EnsureLookup()
         {
             if (flagLookup == null) flagLookup = new HashSet<string>(flags);
@@ -95,6 +118,8 @@ namespace Alma
             if (keyItems == null) keyItems = new List<string>();
             if (flags == null) flags = new List<string>();
             if (rooms == null) rooms = new List<RoomRecord>();
+            if (markers == null) markers = new List<MapMarkerRecord>();
+            if (locationName == null) locationName = "";
             flagLookup = null;
             version = CurrentVersion;
         }

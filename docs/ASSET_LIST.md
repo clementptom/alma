@@ -67,6 +67,7 @@ Animator Controller (already created with these states): `Assets/Alma/Art/Animat
 | `WallSlide` | Clinging, wall is BEHIND the character (left side of the frame), facing right | 2 | 8 | yes | P2 |
 | `DoubleJump` | Mid-air flip or spin | 4–6 | 16 | no | P2 |
 | `Glide` | Cape or wings spread, drifting | 2–4 | 8 | yes | P2 |
+| `Heal` | Kneeling or focusing, energy gathering around the body | 4–6 | 10 | yes | P2 |
 
 Missing states fall back automatically (no `Glide` plays `Fall`; no `Attack2` plays `Attack`...),
 so the seven P1 states are enough to start.
@@ -111,6 +112,7 @@ Plus: **shockwave** sprite (travels along the floor, ~0.7 units tall), **boss pr
 ## 4. NPCs and characters (P2)
 
 - **Old Wanderer** (the tutorial NPC): `Idle` loop (4–6 frames), dialogue portrait 512 × 512
+- **Wandering Merchant** (shopkeeper): `Idle` loop (4–6 frames), dialogue portrait 512 × 512
 - **The voice in the Gallery** (cutscene): portrait or symbol 512 × 512 (P3)
 - Add one row per NPC from your storyboard (each needs `Idle` plus a portrait)
 
@@ -131,7 +133,12 @@ Folder: `Assets/Alma/Art/World/`
 | Door / room exit marker | 1 × 4.5 | Optional arch or dark doorway (P2) |
 | **Ability orb** (pickup) | 0.8 | Glowing loop, 6–8 frames |
 | **Health upgrade** (pickup) | 0.6 | e.g. heart shard or mask fragment |
-| **Key**: "Arena Key" | 0.5 | Plus a 256 × 256 icon for its pickup popup |
+| **Key**: "Arena Key" | 0.5 | Plus a 256 × 256 icon (pickup popup, inventory) |
+| **Energy upgrade** (pickup) | 0.6 | e.g. a vessel or orb fragment |
+| **Old Lantern** (shop item) | — | 256 × 256 icon only (shop and inventory) (P3) |
+| Fast travel shrine | ~1.2 × 2 | States: `Idle` (dormant) and `Active` (awakened, loop) |
+| Crumbling platform | 3 × 0.5 | Cracked stone or rotten wood; it shakes, then breaks into debris |
+| Bounce pad | 1.4 × 0.4 | Spring, mushroom or geyser. States: `Idle` and `Active` (the bounce, 3–4 frames) |
 
 ## 6. Environment art (P1 for Area 1, P2 for the rest)
 
@@ -168,6 +175,10 @@ Folder: `Assets/Alma/Art/VFX/`. Each effect is a prefab you assign in
 | `fx_pickup_sparkle` | Sparkles when collecting | 5–6 |
 | `fx_save_station` | Healing glow rising | 8 |
 | `fx_ability_get` | Big burst of light for a new ability | 8–10 |
+| `fx_heal_charge` | Energy swirling around the player while healing (loop; stays attached to the player) | 6–8 |
+| `fx_heal` | Short flash when a heal completes | 5–6 |
+| `fx_travel` | Shrine awakening / arriving by fast travel | 8 |
+| `fx_bounce` | Puff or splash when a bounce pad fires | 4–5 |
 
 ## 8. UI art
 
@@ -180,11 +191,14 @@ Assign in `Assets/Alma/Resources/UISkin.asset`. Everything is optional: empty sl
 | Title screen background | 1920 × 1080 (or 3840 × 2160) | P1 |
 | Health full / health empty icons | 128 × 128 each (mask, heart, flame...) | P1 |
 | Currency icon | 128 × 128 | P1 |
+| Energy bar | Frame + fill, ~640 × 24 (the code stretches the width as the maximum grows) | P1 |
+| Item slot | 9-slice square frame, ~160 × 160 (inventory and shop) | P2 |
 | Panel (dialogue box, menus) | 9-slice frame, ~256 × 256 with clear borders | P2 |
 | Button | 9-slice, ~512 × 128 | P2 |
 | Boss health bar | Frame + fill, ~1200 × 40 | P2 |
 | Ability icons: Dash, Wall Jump, Double Jump, Glide | 256 × 256 each (shown in the "new ability" popup) | P2 |
 | Map player marker | 64 × 64 | P3 |
+| Map save-station and travel-point markers | 64 × 64 each | P3 |
 | Button prompt icons (keyboard + Xbox + PlayStation) | 64 × 64 each. The code shows text prompts for now; icons need a small UI change | P3 |
 
 ## 9. Sound effects
@@ -211,7 +225,8 @@ jsfxr / ChipTone (for a retro sound).
 | `player_double_jump` | Magical whoosh, higher pitch than the jump | 1 |
 | `player_wall_jump` | Kick off stone plus whoosh | 2 |
 | `player_dash` | Fast air burst | 2 |
-| `player_heal` | Soft rising chime (resting at a save station) | 1 |
+| `player_heal` | Soft rising chime (resting at a save station, and each completed heal) | 1 |
+| `player_heal_charge` | Gathering hum when the player starts healing | 1 |
 
 ### Enemies and boss (P1)
 | ID | Sound |
@@ -235,6 +250,12 @@ jsfxr / ChipTone (for a retro sound).
 | `pickup_item` | Item get (key items) |
 | `pickup_ability` | 2–3 s fanfare for a new ability |
 | `pickup_health_upgrade` | Warm heartbeat-like chime |
+| `pickup_energy_upgrade` | Bright, airy chime |
+| `shop_buy` | Coins plus a satisfied "ding" |
+| `travel_activate` | A shrine awakening (deep chime or hum swell) |
+| `travel_depart` | Whoosh or warp when fast travel starts |
+| `platform_crumble` | Creak and crack before a platform breaks |
+| `bounce_pad` | Springy "boing" or burst |
 | `save_station` | Magical shimmer when resting |
 | `gate_open` / `gate_close` | Heavy stone or metal grind |
 | `lever` | Mechanical clunk |
@@ -251,6 +272,7 @@ jsfxr / ChipTone (for a retro sound).
 | `ui_pause` | Pause |
 | `ui_map_open` | Paper unfolding |
 | `ui_dialogue_blip` | Tiny voice blip while text types out (very short, ~50 ms) |
+| `ui_error` | Soft "nope" (can't afford, not allowed) |
 
 ## 10. Music and ambience
 
@@ -265,6 +287,7 @@ you use allows commercial use if you'll sell the game).
 | `music_area1` | Exploration: calm, mysterious (Entrance and Great Hall) | P1 |
 | `music_area2` | Exploration: tenser, echoing (Gallery, Shaft, Summit) | P2 |
 | `music_boss` | Boss fight: driving, percussive | P1 |
+| `music_credits` | End credits: the main theme, resolved and warm (2–4 min, no loop needed) | P2 |
 | `amb_area1` | Ambience loop: cave wind, distant drips | P2 |
 | `amb_area2` | Ambience loop: echoes, low hum | P2 |
 
@@ -284,7 +307,7 @@ Two ways to do story scenes (both supported):
 | **Intro / opening** | `GameConfig > Intro Cinematic`. Plays on New Game | 30–90 s | P1 |
 | Gallery "voice" scene | `CutsceneTrigger` in Area 2 (currently dialogue only; add a video or Timeline) | 10–20 s | P3 |
 | Boss intro (optional) | Before the Brute wakes | 5–10 s | P3 |
-| **Ending** | After the final boss (plays through a `CutsceneTrigger`) | 60–120 s | P2 |
+| **Ending** | `GameEnding` (video and/or Timeline), then the credits roll | 60–120 s | P2 |
 | Any storyboard moments | One `CutsceneTrigger` each | — | — |
 
 Also: **storyboard panels** (for you, not imported). Turning them into the intro video or a
@@ -293,7 +316,10 @@ still-image slideshow works well.
 ## 12. Writing (from your storyboard)
 
 - NPC dialogue: each line has a speaker, text and an optional portrait. Use **Create > Alma > Dialogue**, or type lines on the NPC.
-- Item / ability names and descriptions
+- Item and ability names, descriptions and icons: `Assets/Alma/Resources/ItemDatabase.asset`
+- Shop names, greetings and what each shop sells (on each `Shopkeeper`)
+- Fast travel point names (on each `FastTravelPoint`)
+- **Credits:** `Assets/Alma/Text/Credits.txt` (one line per line)
 - Area and room names (shown on the map)
 - Boss names
 

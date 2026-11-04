@@ -21,7 +21,12 @@ namespace Alma
         public PopupUI Popup { get; private set; }
         public MapUI Map { get; private set; }
         public PauseMenu Pause { get; private set; }
+        public InventoryUI Inventory { get; private set; }
+        public ControlsMenu Controls { get; private set; }
+        public ShopUI Shop { get; private set; }
+        public FastTravelUI FastTravel { get; private set; }
         public CinematicPlayer Cinematic { get; private set; }
+        public CreditsUI Credits { get; private set; }
         public ScreenFader Fader { get; private set; }
 
         EventSystem eventSystem;
@@ -46,7 +51,12 @@ namespace Alma
             Popup = Create<PopupUI>("Popup", root);
             Map = Create<MapUI>("Map", root);
             Pause = Create<PauseMenu>("Pause", root);
+            Inventory = Create<InventoryUI>("Inventory", root);
+            Shop = Create<ShopUI>("Shop", root);
+            FastTravel = Create<FastTravelUI>("FastTravel", root);
+            Controls = Create<ControlsMenu>("Controls", root);
             Cinematic = Create<CinematicPlayer>("Cinematic", root);
+            Credits = Create<CreditsUI>("Credits", root);
             Fader = Create<ScreenFader>("Fader", root);
 
             SceneManager.sceneLoaded += OnSceneLoaded;
