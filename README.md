@@ -19,12 +19,11 @@ story are added.
    own platform. Plan for 10+ GB of disk space.
 
 ### 2. Get the project
-The code is on the branch `claude/wizardly-hypatia-1ievvb`. Any of these work:
-- **GitHub Desktop (easiest to keep updated):** *File > Clone repository > clementptom/alma*,
-  then switch *Current branch* to `claude/wizardly-hypatia-1ievvb`. Later, *Fetch origin / Pull*
-  brings in new changes.
-- **ZIP:** on GitHub, switch to that branch, then *Code > Download ZIP*, and unzip it.
-- **Command line:** `git clone -b claude/wizardly-hypatia-1ievvb https://github.com/clementptom/alma.git`
+Any of these work:
+- **GitHub Desktop (easiest to keep updated):** *File > Clone repository > clementptom/alma*.
+  Later, *Fetch origin / Pull* brings in new changes.
+- **ZIP:** on the GitHub page, *Code > Download ZIP*, then unzip it.
+- **Command line:** `git clone https://github.com/clementptom/alma.git`
 
 ### 3. Open it
 1. In Unity Hub choose **Projects > Add > Add project from disk** and select the folder that
